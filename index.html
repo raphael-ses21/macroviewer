@@ -3142,7 +3142,7 @@ EN_RULES.push(
   [/^(.+) (monte|baisse) de ([\d.,]+) % aujourd'hui\. Tu en possèdes (\d+)( à découvert)?\.$/,(m,nm,d,x,n,s)=>`${nm} is ${d==="monte"?"up":"down"} ${x}% today. You ${s?"are short":"own"} ${n}.`],
   [/^Stop loss \((.+)\)$/,(m,c)=>`Stop loss (${c})`],[/^Take profit \((.+)\)$/,(m,c)=>`Take profit (${c})`],
   [/^Bonjour, (.*)\.$/,(m,n)=>`Hello, ${n}.`],
-  [/^Bonjour (.*) ! Je réponds à tes questions sur la finance, les news, ton portefeuille ou l'histoire des marchés\.$/,(m,n)=>`Hi ${n}! I answer your questions about finance, the news, your portfolio or market history.`],
+  [/^Bonjour(?: (.*))? ! Je réponds à tes questions sur la finance, les news, ton portefeuille ou l'histoire des marchés\.$/,(m,n)=>`Hi${n?" "+n:""}! I answer your questions about finance, the news, your portfolio or market history.`],
   [/^Crée ton espace\. On t'offre (.+) virtuels pour t'entraîner à investir, sans aucun risque\.$/,(m,x)=>`Create your space. You get ${x} of virtual money to practise investing, with no risk at all.`],
   [/^Tu démarres avec (.+) virtuels\. Achète, vends ou shorte des actions, des ETF et des obligations au dernier cours réel, sans risquer un centime\.$/,(m,x)=>`You start with ${x} of virtual money. Buy, sell or short stocks, ETFs and bonds at the latest real price, without risking a cent.`],
   [/^([+−]?[\d.,\s]+)\spb$/,(m,x)=>`${x} bp`],
@@ -4653,15 +4653,20 @@ const RULES=()=>`Tu es l'assistant de MacroViewer, une appli qui aide des lycée
 function pressContext(){
   return `Titres de presse récents (relevés le ${dateTxt(NEWS.asOf)}, flux publics des journaux) :\n`+NEWS.items.slice(0,60).map(n=>`- [${n.src}, ${dateTxt(n.t)}${(n.tags||[]).length?", "+n.tags.map(t=>TAGS[t]).join("/"):""}] ${n.title}${n.sum?" — "+n.sum.slice(0,160):""}`).join("\n");
 }
-function fmtMsg(s){return esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");}
+function fmtMsg(s){return esc(s).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\n/g,"<br>");}
 function renderChat(){
   const log=$("#chat-log");
-  let h=`<div class="bub sys">Bonjour ${esc(S.profile?.name||"")} ! Je réponds à tes questions sur la finance, les news, ton portefeuille ou l'histoire des marchés.</div>`;
-  if(sampleState==="off") h+=`<div class="bub sys">${T2("L'assistant IA n'est pas disponible sur la version web publique de MacroViewer. Toutes les autres rubriques fonctionnent normalement.","The AI assistant is not available on the public web version of MacroViewer. Every other section works normally.")}</div>`;
-  h+=CHAT.map(m=>`<div class="bub ${m.role==="user"?"me":"ai"}" translate="no">${fmtMsg(m.content)}</div>`).join("");
-  if(!CHAT.length) h+=`<div class="sugg">${SUGGEST.map(s=>`<button type="button" data-sugg="${esc(s)}">${esc(s)}</button>`).join("")}</div>`;
+  let h=`<div class="bub sys">Bonjour${S.profile?.name?" "+esc(S.profile.name):""} ! Je réponds à tes questions sur la finance, les news, ton portefeuille ou l'histoire des marchés.</div>`;
+  if(sampleState==="off"&&window.MVIA) h+=`<div class="bub sys">${T2("Je suis l'IA de MacroViewer : je cherche la réponse dans le glossaire, le cours de SES, les fiches des banques centrales, les grandes histoires, et dans les cours et la presse du jour.","I'm MacroViewer's own AI: I look for answers in the glossary, the SES course, central bank pages, the stories, and today's prices and news.")}</div>`;
+  else if(sampleState==="off") h+=`<div class="bub sys">${T2("L'assistant IA n'est pas disponible sur cette version de MacroViewer.","The AI assistant is not available on this version of MacroViewer.")}</div>`;
+  h+=CHAT.map(m=>`<div class="bub ${m.role==="user"?"me":"ai"}" translate="no">${fmtMsg(m.content)}</div>`+
+    (m.links&&m.links.length?`<div class="sugg ia-links">${m.links.map(([l,a])=>`<button type="button" data-ia="${esc(a)}">→ ${esc(l)}</button>`).join("")}</div>`:"")+
+    (m.ideas&&m.ideas.length?`<div class="sugg">${m.ideas.map(s=>`<button type="button" data-sugg="${esc(s)}">${esc(s)}</button>`).join("")}</div>`:"")).join("");
+  const sugg=sampleState==="off"&&window.MVIA?[T2("Que s'est-il passé sur les marchés aujourd'hui ?","What happened on the markets today?"),T2("C'est quoi l'inflation ?","What is inflation?"),T2("Comment les banques créent-elles la monnaie ?","How do banks create money?"),T2("Combien vaut LVMH ?","What's LVMH's price?"),T2("C'est quoi une pentification ?","What is a steepener?"),T2("Analyse mon portefeuille","Analyse my portfolio")]:SUGGEST;
+  if(!CHAT.length) h+=`<div class="sugg">${sugg.map(s=>`<button type="button" data-sugg="${esc(s)}">${esc(s)}</button>`).join("")}</div>`;
   log.innerHTML=h; log.scrollTop=log.scrollHeight;
   log.querySelectorAll("[data-sugg]").forEach(b=>b.onclick=()=>{$("#chat-q").value=tr(b.dataset.sugg); sendChat();});
+  log.querySelectorAll("[data-ia]").forEach(b=>b.onclick=()=>window.MVIA&&MVIA.open(b.dataset.ia));
 }
 function openChat(){ $("#chat").hidden=false; $("#fab").hidden=true; closeMenu(); renderChat(); setTimeout(()=>$("#chat-q").focus(),30); }
 function closeChat(){ $("#chat").hidden=true; $("#fab").hidden=false; }
@@ -4677,6 +4682,11 @@ function chatErr(e){
 async function sendChat(){
   const inp=$("#chat-q"), q=inp.value.trim(); if(!q) return;
   if(chatCtl) return;
+  if(!sampleFn&&sampleState==="off"&&window.MVIA){   // site web : l'IA maison (ia.js)
+    inp.value=""; CHAT.push({role:"user",content:q});
+    let r; try{ r=MVIA.answer(q); }catch(e){ r={text:T2("Oups, je n'ai pas réussi à répondre. Reformule ta question.","Oops, I couldn't answer. Try rephrasing.")}; }
+    CHAT.push({role:"assistant",content:r.text,links:r.links,ideas:r.ideas}); renderChat(); return;
+  }
   if(!sampleFn){ renderChat(); if(sampleState==="wait"){ const log=$("#chat-log"); log.insertAdjacentHTML("beforeend",`<div class="bub sys">L'assistant démarre… renvoie ta question dans quelques secondes.</div>`);} return; }
   inp.value="";
   CHAT.push({role:"user",content:q});
@@ -4805,3 +4815,4 @@ async function pullSiteData(){
   }).catch(()=>{});
 })();
 </script>
+<script src="ia.js"></script>
