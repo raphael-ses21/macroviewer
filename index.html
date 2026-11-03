@@ -4733,6 +4733,34 @@ function showOnboard(editing){
   setTimeout(()=>$("#ob-name").focus(),50);
 }
 
+/* ---------- Site web : cours et titres relevés par GitHub Actions (quotes.json, news.json) ---------- */
+// sur github.io on lit les fichiers bruts du dépôt, à jour dès que le robot les a publiés
+function siteDataUrls(f){
+  const u=[], h=location.hostname;
+  if(/\.github\.io$/.test(h)){
+    const user=h.split(".")[0], first=location.pathname.split("/").filter(Boolean)[0]||"";
+    const repo=first&&!first.includes(".")?first:h;
+    u.push(`https://raw.githubusercontent.com/${user}/${repo}/main/${f}?t=${Date.now()}`);
+  }
+  u.push(`${f}?t=${Date.now()}`);
+  return u;
+}
+async function fetchSiteJson(f){
+  for(const url of siteDataUrls(f)){
+    try{ const r=await fetch(url,{cache:"no-store"}); if(r.ok) return await r.json(); }catch(e){}
+  }
+  return null;
+}
+async function pullSiteData(){
+  if(location.protocol!=="http:"&&location.protocol!=="https:") return;
+  const [Q,N]=await Promise.all([fetchSiteJson("quotes.json"),fetchSiteJson("news.json")]);
+  if(Q&&Q.q&&Q.asOf>QUOTES.asOf){
+    Q.q=Object.assign({},QUOTES.q,Q.q);   // un cours manquant garde sa dernière valeur
+    loadQuotes(Q); FLASHES=buildFlashes(); checkAlerts(); render(true);
+  }
+  if(N&&N.items&&N.asOf>NEWS.asOf){ NEWS=N; if(view==="accueil"||view==="news") render(true); }
+}
+
 /* ---------- Démarrage ---------- */
 (function boot(){
   document.querySelectorAll("[data-lang]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lang===LANG));
@@ -4746,6 +4774,7 @@ function showOnboard(editing){
   // site public : on arrive directement sur le tableau de bord (prénom modifiable via « Modifier »)
   if(!S.profile){ S.profile={name:"", watch:["spx","ndx","dji","cac","aapl","msft","nvda","mc"].filter(id=>A[id]), created:Date.now()}; save(); render(); }
   checkAlerts(); updateBell();
+  pullSiteData(); setInterval(pullSiteData,5*60*1000);
   const C=window.claude;
   if(!(C&&C.use)){ sampleState="off"; return; }
   C.use("sample").then(fn=>{ if(fn){ sampleFn=fn; sampleState="on"; } else sampleState="off"; if(!$("#chat").hidden) renderChat(); }).catch(()=>{sampleState="off";});
