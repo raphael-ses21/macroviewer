@@ -1,5 +1,6 @@
 <meta charset="utf-8">
 <title>MacroViewer</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%2305070d'/%3E%3Cpath d='M7 30V10l7 10z' fill='%231e4fd8'/%3E%3Cpath d='M14 20l6-10v10z' fill='%233d8bff'/%3E%3Cpath d='M20 10l6 10h-6z' fill='%237cb6ff'/%3E%3Cpath d='M26 20l7-10v20z' fill='%231e4fd8'/%3E%3Cpath d='M14 22h12l-6 9z' fill='%23fff'/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -544,10 +545,14 @@ html[data-ui="light"] .fab{box-shadow:0 8px 24px rgba(31,99,224,.25)}
     <linearGradient id="logobg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0c2a66"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
     <!-- logo : un M blanc et un V bleu ciel entrelacés, comme une courbe de cours -->
     <symbol id="logo" viewBox="0 0 40 40">
-      <rect width="40" height="40" rx="10" fill="url(#logobg)"/>
-      <rect x=".5" y=".5" width="39" height="39" rx="9.5" fill="none" stroke="#fff" stroke-opacity=".14"/>
-      <path d="M7 28.5V11.5L14 21.5L21 11.5V28.5" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M19.5 11.5L26 28.5L32.5 11.5" fill="none" stroke="#8fd0ff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- logo « prisme » : un M en facettes bleues posé sur une pointe de V blanche -->
+      <rect width="40" height="40" rx="10" fill="#05070d"/>
+      <rect x=".5" y=".5" width="39" height="39" rx="9.5" fill="none" stroke="#3d8bff" stroke-opacity=".28"/>
+      <path d="M7 30V10l7 10z" fill="#1e4fd8"/>
+      <path d="M14 20l6-10v10z" fill="#3d8bff"/>
+      <path d="M20 10l6 10h-6z" fill="#7cb6ff"/>
+      <path d="M26 20l7-10v20z" fill="#1e4fd8"/>
+      <path d="M14 22h12l-6 9z" fill="#fff"/>
     </symbol>
   </defs>
 </svg>
