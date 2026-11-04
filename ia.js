@@ -169,9 +169,9 @@
     return {text:T2(`Les derniers titres sur ${lbl} (presse relevée : ${dateTxt(NEWS.asOf)}) :\n`,`Latest headlines (${dateTxt(NEWS.asOf)}):\n`)+items.map(n=>`• « ${n.title} » — ${n.src}`).join("\n"),links:[[T2("Toutes les news","All the news"),"go:news"]]};
   }
   function portfolioAnswer(){
-    const ids=Object.keys(S.pos), tot=pfTotal(), pl=tot-START_CASH;
-    let t=T2(`Ton portefeuille virtuel vaut **${fmtEur(tot)}** pour ${fmtEur(START_CASH)} au départ, soit **${pl>=0?"+":"−"}${fmtEur(Math.abs(pl))}** (${pct(pl/START_CASH*100)}). Liquidités : ${fmtEur(S.cash)}.`,
-      `Your virtual portfolio is worth **${fmtEur(tot)}** versus ${fmtEur(START_CASH)} at the start: **${pl>=0?"+":"−"}${fmtEur(Math.abs(pl))}** (${pct(pl/START_CASH*100)}). Cash: ${fmtEur(S.cash)}.`);
+    const ids=Object.keys(PF().pos).filter(id=>A[id]), tot=pfTotal(), pl=tot-pfStart();
+    let t=T2(`Ton portefeuille virtuel vaut **${fmtEur(tot)}** pour ${fmtEur(pfStart())} au départ, soit **${pl>=0?"+":"−"}${fmtEur(Math.abs(pl))}** (${pct(pl/pfStart()*100)}). Liquidités : ${fmtEur(PF().cash)}.`,
+      `Your virtual portfolio is worth **${fmtEur(tot)}** versus ${fmtEur(pfStart())} at the start: **${pl>=0?"+":"−"}${fmtEur(Math.abs(pl))}** (${pct(pl/pfStart()*100)}). Cash: ${fmtEur(PF().cash)}.`);
     if(!ids.length) return {text:t+T2("\nTu n'as encore aucune position : ouvre la fiche d'une action ou d'un ETF et clique sur « Acheter ». Un ETF MSCI World est un bon point de départ pour être diversifié.","\nYou have no position yet: open a stock or ETF page and click Buy."),links:[[T2("Ouvrir le portefeuille","Open the portfolio"),"go:portefeuille"]]};
     const rows=ids.map(id=>({a:A[id],v:posValueEur(id),p:posPL(id)})).sort((x,y)=>Math.abs(y.v)-Math.abs(x.v));
     t+="\n"+rows.map(r=>`• ${r.a.name} : ${fmtEur(r.v)} (${r.p>=0?"+":"−"}${fmtEur(Math.abs(r.p))})`).join("\n");
@@ -180,7 +180,7 @@
     if(big>0.4) tips.push(T2(`${rows[0].a.name} pèse ${fmt(big*100,0)} % du portefeuille : c'est beaucoup sur une seule ligne.`,`${rows[0].a.name} is ${fmt(big*100,0)}% of the portfolio: a lot on one line.`));
     if(rows.length<4) tips.push(T2("Avec moins de 4 lignes, le portefeuille est peu diversifié : un ETF ou des secteurs différents réduiraient le risque.","Fewer than 4 lines means little diversification."));
     if(rows.some(r=>r.v<0)) tips.push(T2("Tu as une position vendeuse (short) : la perte n'a pas de limite si le cours monte, pense au stop loss.","You have a short position: the loss is unlimited if the price rises, use a stop loss."));
-    if(S.cash/tot>0.5) tips.push(T2("Plus de la moitié est en liquidités : c'est prudent, mais cet argent ne rapporte rien.","Over half is in cash: safe, but it earns nothing."));
+    if(PF().cash/tot>0.5) tips.push(T2("Plus de la moitié est en liquidités : c'est prudent, mais cet argent ne rapporte rien.","Over half is in cash: safe, but it earns nothing."));
     if(tips.length) t+="\n"+T2("Mon avis : ","My view: ")+tips.join(" ");
     return {text:t,links:[[T2("Ouvrir le portefeuille","Open the portfolio"),"go:portefeuille"]]};
   }
