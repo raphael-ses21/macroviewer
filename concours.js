@@ -30,7 +30,9 @@
       myGroups:async()=>chk(await sb.from("members").select("*, groups(*)").eq("player_id",uid)),
       members:async code=>chk(await sb.from("members").select("player_id,pseudo,cash,pos,value,updated_at").eq("group_code",code)),
       saveMe:async(code,d)=>{ chk(await sb.from("members").update(d).eq("group_code",code).eq("player_id",uid)); },
-      logOrders:async rows=>{ if(rows.length) chk(await sb.from("orders").insert(rows)); }};
+      logOrders:async rows=>{ if(rows.length) chk(await sb.from("orders").insert(rows)); },
+      saveDaily:async(code,rows)=>chk(await sb.rpc("save_daily_rank",{p_code:code,p_rows:rows})),
+      daily:async code=>chk(await sb.from("daily_ranks").select("day,player_id,pseudo,value,rank").eq("group_code",code).order("day").order("rank"))};
   }
   // base simulée dans le navigateur, pour tester sans Supabase (MV_CONCOURS = {mock:true})
   function mockApi(){
@@ -45,8 +47,19 @@
       async myGroups(){ const d=db(); return d.members.filter(m=>m.player_id===uid).map(m=>({...m,groups:d.groups[m.group_code]})); },
       async members(code){ return db().members.filter(m=>m.group_code===code); },
       async saveMe(code,x){ const d=db(), m=d.members.find(m=>m.group_code===code&&m.player_id===uid); if(Date.now()>Date.parse(d.groups[code].ends_at)+3e5) throw E("row-level security"); Object.assign(m,x); put(d); },
-      async logOrders(rows){ const d=db(); d.orders.push(...rows); put(d); }};
+      async logOrders(rows){ const d=db(); d.orders.push(...rows); put(d); },
+      async saveDaily(code,rows){ const d=db(), g=d.groups[code], now=Date.now(); d.daily=d.daily||[];
+        if(now<Date.parse(g.starts_at)) return 0;
+        let day=parisDay(now);
+        if(now>Date.parse(g.ends_at)){ day=parisDay(Date.parse(g.ends_at)); if(now>Date.parse(g.ends_at)+864e5||d.daily.some(r=>r.group_code===code&&r.day===day&&Date.parse(r.saved_at)>Date.parse(g.ends_at))) return 0; }
+        d.daily=d.daily.filter(r=>!(r.group_code===code&&r.day===day));
+        const ok=rows.map(r=>({...r,m:d.members.find(m=>m.group_code===code&&m.player_id===r.player_id)})).filter(r=>r.m).sort((a,b)=>b.value-a.value);
+        ok.forEach((r,i)=>d.daily.push({group_code:code,day,player_id:r.player_id,pseudo:r.m.pseudo,value:r.value,rank:i&&ok[i-1].value===r.value?d.daily[d.daily.length-1].rank:i+1,saved_at:new Date().toISOString()}));
+        put(d); return ok.length; },
+      async daily(code){ return (db().daily||[]).filter(r=>r.group_code===code).sort((a,b)=>a.day.localeCompare(b.day)||a.rank-b.rank); }};
   }
+  // jour au format AAAA-MM-JJ, à l'heure de Paris (comme dans la base)
+  const parisDay=t=>new Intl.DateTimeFormat("fr-CA",{timeZone:"Europe/Paris",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(t));
   function init(){
     if(!ready){ state="loading";
       ready=(CFG.mock?Promise.resolve(mockApi()):supabaseApi()).then(a=>{ api=a; return loadMine(); }).then(()=>{ state="ok"; refreshView(); })
@@ -77,7 +90,49 @@
     if(ACTIVE) fetchMembers(ACTIVE.group.code);
   }
   async function fetchMembers(code){
-    try{ members[code]=await api.members(code); if(view==="portefeuille") refreshView(); }catch(e){}
+    try{ members[code]=await api.members(code); if(view==="portefeuille") refreshView(); }catch(e){ return; }
+    snapshotDay(code);
+  }
+
+  /* ---------- classement quotidien sauvegardé ----------
+     Quand un participant regarde le concours, le classement du jour est enregistré dans la base
+     (au plus toutes les 10 minutes). Le dernier enregistrement de la journée devient le classement du jour ;
+     les jours passés ne peuvent plus être modifiés. */
+  const dailies={}, selDay={}, lastSnap={};
+  async function snapshotDay(code){
+    const g=groups.find(x=>x.group.code===code); if(!g||!api.saveDaily) return;
+    const s=status(g.group);
+    if(s!=="soon"&&Date.now()-(lastSnap[code]||0)>=6e5&&(members[code]||[]).length){
+      lastSnap[code]=Date.now();
+      const rows=members[code].map(r=>({player_id:r.player_id,value:Math.round(rowValue(r)*100)/100})).filter(r=>isFinite(r.value));
+      try{ await api.saveDaily(code,rows); }catch(e){}
+    }
+    if(!dailies[code]||lastSnap[code]>(dailies[code].at||0)) fetchDaily(code);
+  }
+  async function fetchDaily(code){
+    try{ const r=await api.daily(code); r.at=Date.now(); dailies[code]=r; if(view==="portefeuille") refreshView(); }catch(e){}
+  }
+  const dayTxt=d=>new Date(d+"T12:00:00").toLocaleDateString(LOC(),{weekday:"long",day:"numeric",month:"long"});
+  function dailyBoard(g){
+    const all=dailies[g.code], start=Number(g.start_cash);
+    const head=`<h3 style="margin:18px 0 6px;font-size:16px">Classement jour par jour</h3>`;
+    if(!all) return head+`<p class="note" style="margin:0">Chargement de l'historique…</p>`;
+    if(!all.length) return head+`<p class="note" style="margin:0">Aucun classement enregistré pour l'instant. Le classement de chaque jour est sauvegardé automatiquement dès qu'un participant ouvre le concours, à partir du ${dt(g.starts_at)}.</p>`;
+    const days=[...new Set(all.map(r=>r.day))].sort();
+    const day=days.includes(selDay[g.code])?selDay[g.code]:days[days.length-1], i=days.indexOf(day);
+    const rows=all.filter(r=>r.day===day).sort((a,b)=>a.rank-b.rank);
+    const prev=i>0?new Map(all.filter(r=>r.day===days[i-1]).map(r=>[r.player_id,r.rank])):null;
+    const move=r=>{ if(!prev) return `<span class="muted">—</span>`; const p=prev.get(r.player_id); if(p==null) return `<span class="tag">nouveau</span>`;
+      const d=p-r.rank; return d>0?`<span class="up">▲ ${d}</span>`:d<0?`<span class="down">▼ ${-d}</span>`:`<span class="muted">=</span>`; };
+    const today=parisDay(Date.now())===day&&status(g)==="live";
+    return head+`<div class="btns" style="align-items:center;margin-bottom:8px">
+        <label class="note" for="grp-day">Jour :</label>
+        <select id="grp-day" data-grp-day="${esc(g.code)}">${days.map((d,k)=>`<option value="${d}" ${d===day?"selected":""}>Jour ${k+1} · ${dayTxt(d)}</option>`).join("")}</select>
+        <button class="btn" data-grp="day:-1" ${i===0?"disabled":""} aria-label="Jour précédent">←</button><button class="btn" data-grp="day:1" ${i===days.length-1?"disabled":""} aria-label="Jour suivant">→</button></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Rang</th><th>Pseudo</th><th>Valeur</th><th>Performance</th><th>Évolution du rang</th></tr></thead><tbody>
+      ${rows.map(r=>{ const me=api&&r.player_id===api.uid, v=Number(r.value); return `<tr${me?' style="background:var(--panel-2,rgba(47,124,246,.12))"':""}><td class="num">${r.rank}</td><td><b>${esc(r.pseudo)}</b>${me?" (toi)":""}</td><td class="num">${fmtEur(v)}</td><td class="num ${cls(v-start)}">${pct((v/start-1)*100)}</td><td class="num">${move(r)}</td></tr>`; }).join("")}
+      </tbody></table></div>
+      <p class="note" style="margin:6px 0 0">${today?"Classement du jour en cours : il est mis à jour quand un participant ouvre le concours et sera figé à minuit.":`Classement enregistré le ${dayTxt(day)} (dernière mise à jour de la journée).`} L'évolution compare avec le jour précédent enregistré.</p>`;
   }
   function setActive(code){
     if(ACTIVE&&saveT){ clearTimeout(saveT); saveT=null; flush(ACTIVE); }
@@ -185,7 +240,7 @@
       const g=ACTIVE.group, mine=api&&g.owner===api.uid;
       body=`<div class="btns" style="align-items:center;justify-content:space-between"><div><small class="note">Code à donner aux participants</small><div class="num" style="font-size:26px;letter-spacing:.2em;font-weight:700">${esc(g.code)}</div></div>
         <div class="btns"><button class="btn" data-grp="copy">Copier le code</button>${mine?`<span class="tag">Tu as créé ce groupe</span>`:""}</div></div>
-        ${rules(g)}${board(g)}`;
+        ${rules(g)}${board(g)}${dailyBoard(g)}`;
     } else body=`<p class="note" style="margin:0">Crée un groupe pour organiser un concours de Bourse avec ta classe, ou rejoins-en un avec le code qu'on t'a donné. Chaque participant reçoit le même capital virtuel et joue avec les vrais cours.</p>`;
     const load=state==="loading"?`<p class="note" style="margin:0">Connexion au serveur des concours…</p>`:"";
     return panel("Groupes et concours","GRP",`<div class="pb grid" style="gap:12px">${chips}${load}${m}${body}${form?"":acts}</div>`);
@@ -238,13 +293,19 @@
     else if(a==="cancel"){ form=null; msg=null; render(true); }
     else if(a==="mine") setActive(null);
     else if(a.startsWith("open:")) setActive(a.slice(5));
+    else if(a.startsWith("day:")&&ACTIVE){ const c=ACTIVE.group.code, all=dailies[c]||[], days=[...new Set(all.map(r=>r.day))].sort();
+      const cur=days.includes(selDay[c])?selDay[c]:days[days.length-1], k=days.indexOf(cur)+Number(a.slice(4));
+      if(k>=0&&k<days.length){ selDay[c]=days[k]; render(true); } }
     else if(a==="copy"&&ACTIVE){ const c=ACTIVE.group.code; try{ navigator.clipboard.writeText(c).then(()=>toast(`Code ${c} copié.`,"tp"),()=>toast(`Le code est ${c}.`,"tp")); }catch(err){ toast(`Le code est ${c}.`,"tp"); } }
   });
   document.addEventListener("submit",e=>{
     if(e.target.id==="grp-create"){ e.preventDefault(); createGroup(); }
     else if(e.target.id==="grp-join"){ e.preventDefault(); joinGroup(); }
   });
-  document.addEventListener("change",e=>{ if(e.target.matches("[data-grp-switch]")) setActive(e.target.value||null); });
+  document.addEventListener("change",e=>{
+    if(e.target.matches("[data-grp-switch]")) setActive(e.target.value||null);
+    else if(e.target.matches("[data-grp-day]")){ selDay[e.target.dataset.grpDay]=e.target.value; render(true); }
+  });
 
   // classement : mis à jour toutes les minutes pendant qu'on regarde un concours
   pollT=setInterval(()=>{ if(ACTIVE&&api){ fetchMembers(ACTIVE.group.code); onPrices(); } },60000);
