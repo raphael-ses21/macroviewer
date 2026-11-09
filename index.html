@@ -1,5 +1,6 @@
 <meta charset="utf-8">
 <title>MacroViewer</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%2305070d'/%3E%3Ccircle cx='20' cy='20' r='17.5' fill='none' stroke='%233d8bff' stroke-width='1.4'/%3E%3Cpath d='M9 26V14l5 7 5-7v12' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M22 14l4.5 12L31 14' fill='none' stroke='%233d8bff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -552,10 +553,11 @@ html[data-ui="light"] .fab{box-shadow:0 8px 24px rgba(31,99,224,.25)}
     <linearGradient id="logobg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0c2a66"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
     <!-- logo : un M blanc et un V bleu ciel entrelacés, comme une courbe de cours -->
     <symbol id="logo" viewBox="0 0 40 40">
-      <rect width="40" height="40" rx="10" fill="url(#logobg)"/>
-      <rect x=".5" y=".5" width="39" height="39" rx="9.5" fill="none" stroke="#fff" stroke-opacity=".14"/>
-      <path d="M7 28.5V11.5L14 21.5L21 11.5V28.5" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M19.5 11.5L26 28.5L32.5 11.5" fill="none" stroke="#8fd0ff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <!-- logo « médaille » : rond noir cerclé de bleu, M blanc et V bleu -->
+      <circle cx="20" cy="20" r="20" fill="#05070d"/>
+      <circle cx="20" cy="20" r="17.5" fill="none" stroke="#3d8bff" stroke-width="1.4"/>
+      <path d="M9 26V14l5 7 5-7v12" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M22 14l4.5 12L31 14" fill="none" stroke="#3d8bff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
   </defs>
 </svg>
@@ -3936,15 +3938,15 @@ const bpEN = s=>s.replace(/\spb\b/g," bp");
   ["Investir sur cet indice","Investing in this index"],["On ne peut pas acheter un indice directement : c'est juste un calcul. Pour investir dessus, on achète un ETF qui le copie.","You can't buy an index directly: it's just a calculation. To invest in it, you buy an ETF that copies it."],
   ["1 an","1 year"],["5 ans","5 years"],["Depuis le 1er janvier","Since 1 January"],["« × » : le cours a été multiplié par ce nombre sur la période.","\"×\": the price was multiplied by this number over the period."],["Année par année","Year by year"],["Évolution du cours, sans compter les dividendes. Les performances passées ne disent rien des performances futures.","Price change, not counting dividends. Past performance says nothing about future performance."],
   ["Dividendes","Dividends"],["Rendement","Yield"],["Dividende annuel","Annual dividend"],["Part du bénéfice versée","Payout ratio"],["Rendement moyen 5 ans","5-year average yield"],["Le rendement, c'est le dividende annuel divisé par le cours.","The yield is the annual dividend divided by the share price."],["Aucun dividende versé sur dix ans dans les données : cet ETF est dit « capitalisant », il réinvestit les dividendes des entreprises dans le fonds.","No dividend paid over ten years in the data: this ETF is \"accumulating\", it reinvests the companies' dividends in the fund."],
-  ["Fiche complète","Full profile"],["Les graphiques sur plusieurs années, les dividendes et la grille Graham & Buffett de cette action s'affichent dans l'appli en ligne, ouverte sur claude.ai avec un compte connecté.","Multi-year charts, dividends and the Graham & Buffett checklist for this stock are shown in the online app, opened on claude.ai with a signed-in account."],["Chargement des graphiques, des dividendes et de la grille Graham & Buffett…","Loading charts, dividends and the Graham & Buffett checklist…"],
+  ["Fiche complète","Full profile"],["Les graphiques sur plusieurs années, les dividendes et la grille Graham & Buffett de cette action s'affichent dans l'appli en ligne.","Multi-year charts, dividends and the Graham & Buffett checklist for this stock are shown in the online app."],["Chargement des graphiques, des dividendes et de la grille Graham & Buffett…","Loading charts, dividends and the Graham & Buffett checklist…"],
   // Graham & Buffett
   ["Grille Graham & Buffett","Graham & Buffett checklist"],["critères remplis","criteria met"],["Benjamin Graham · « L'investisseur intelligent » (1949)","Benjamin Graham · \"The Intelligent Investor\" (1949)"],["Warren Buffett · Berkshire Hathaway","Warren Buffett · Berkshire Hathaway"],
   ["PER inférieur ou égal à 15","P/E of 15 or less"],["Graham évitait de payer plus de 15 années de bénéfices.","Graham avoided paying more than 15 years of earnings."],["Cours / valeur comptable ≤ 1,5","Price / book value ≤ 1.5"],["Ne pas payer beaucoup plus que ce que l'entreprise possède réellement.","Don't pay much more than what the company actually owns."],["PER × cours/valeur comptable ≤ 22,5","P/E × price/book ≤ 22.5"],["Sa règle combinée : un peu cher sur un critère, acceptable si c'est bon marché sur l'autre.","His combined rule: a bit expensive on one criterion is fine if it's cheap on the other."],["Ratio de liquidité ≥ 2","Current ratio ≥ 2"],["Les avoirs à court terme doivent couvrir deux fois les dettes à court terme.","Short-term assets should cover short-term debts twice over."],["Ce critère ne s'applique pas aux banques.","This criterion doesn't apply to banks."],["Graham voulait des dividendes réguliers sur une longue période.","Graham wanted steady dividends over a long period."],["Cours sous le « nombre de Graham »","Price below the \"Graham number\""],["√(22,5 × bénéfice par action × actif net par action) : le prix maximum selon sa méthode.","√(22.5 × earnings per share × book value per share): the maximum price according to his method."],
   ["Rentabilité des capitaux propres (ROE) ≥ 15 %","Return on equity (ROE) ≥ 15%"],["Faire beaucoup de bénéfices avec l'argent confié par les actionnaires.","Making a lot of profit with the money entrusted by shareholders."],["Marge nette ≥ 15 %","Net margin ≥ 15%"],["Une marge élevée et durable signale souvent un avantage concurrentiel : marque, technologie, coûts.","A high, lasting margin often signals a competitive advantage: brand, technology, costs."],["Dette ≤ 50 % des capitaux propres","Debt ≤ 50% of equity"],["Buffett se méfie des entreprises très endettées.","Buffett is wary of heavily indebted companies."],["Pour une banque, la dette est la matière première : ce critère ne s'applique pas.","For a bank, debt is the raw material: this criterion doesn't apply."],["Bénéfices en hausse sur un an","Earnings up over one year"],["Il veut des bénéfices qui progressent avec le temps.","He wants earnings that grow over time."],["Tu comprends comment elle gagne de l'argent ?","Do you understand how it makes money?"],["Son « cercle de compétence » : n'investir que dans ce que l'on comprend vraiment.","His \"circle of competence\": only invest in what you truly understand."],["à toi","your call"],["banque","bank"],["OUI","YES"],["NON","NO"],
   ["Les leçons de Graham et Buffett","Lessons from Graham and Buffett"],["1894–1976 · professeur à Columbia, père de l'investissement « dans la valeur »","1894–1976 · Columbia professor, father of \"value\" investing"],["Monsieur Marché.","Mr. Market."],["Le marché est comme un associé d'humeur changeante qui te propose chaque jour un prix. Tu n'es jamais obligé d'accepter : profite de ses excès au lieu de les suivre.","The market is like a moody business partner who offers you a price every day. You never have to accept: take advantage of his excesses instead of following them."],["La marge de sécurité.","The margin of safety."],["Acheter nettement en dessous de ce que vaut l'entreprise, pour avoir le droit de se tromper.","Buy well below what the company is worth, so you can afford to be wrong."],["Investir n'est pas spéculer.","Investing is not speculating."],["Un investissement repose sur une analyse sérieuse, protège le capital et vise un rendement raisonnable.","An investment rests on serious analysis, protects capital and aims for a reasonable return."],["né en 1930 · dirige Berkshire Hathaway, ancien élève de Graham","born in 1930 · runs Berkshire Hathaway, a former student of Graham"],["Le cercle de compétence.","The circle of competence."],["N'investir que dans des entreprises dont on comprend le métier.","Only invest in companies whose business you understand."],["Le « fossé » (moat).","The \"moat\"."],["Chercher un avantage concurrentiel durable : une marque forte, des coûts plus bas, des clients fidèles.","Look for a lasting competitive advantage: a strong brand, lower costs, loyal customers."],["Le long terme.","The long term."],["Acheter une entreprise comme si la Bourse pouvait fermer pendant cinq ans.","Buy a company as if the stock market could close for five years."],["Pour la plupart des gens.","For most people."],["Il conseille un fonds indiciel peu cher sur le S&P 500 plutôt que de choisir ses actions soi-même.","He recommends a low-cost S&P 500 index fund rather than picking stocks yourself."],
   // recherche, partage, assistant
-  ["Nom ou symbole : Danone, Toyota, NVDA…","Name or ticker: Danone, Toyota, NVDA…"],["Nom ou symbole","Name or ticker"],["Télécharger ou mettre en ligne MacroViewer","Download or publish MacroViewer"],["MacroViewer chez toi ou sur le Web","MacroViewer at home or on the web"],["1. Télécharger l'appli","1. Download the app"],["Un seul fichier,","A single file,"],[", qui s'ouvre dans n'importe quel navigateur, même sans compte. Il contient les cours et les titres de presse du moment, les fiches des principales valeurs, le portefeuille, le glossaire et les histoires. L'assistant IA, la mise à jour automatique des cours et les fiches détaillées des 840 actions restent réservés à l'appli en ligne.",", which opens in any browser, even without an account. It contains the current prices and press headlines, profiles of the main securities, the portfolio, the glossary and the stories. The AI assistant, automatic price updates and detailed profiles of the 840 stocks remain in the online app only."],["Télécharger MacroViewer.html","Download MacroViewer.html"],["2. Partager le lien de l'appli en ligne","2. Share the online app's link"],["Sur claude.ai, ouvre le menu","On claude.ai, open the"],["en haut de la page et choisis qui peut ouvrir MacroViewer : ta classe, ton lycée ou toute personne disposant du lien. C'est la version complète, avec l'assistant et les cours mis à jour.","menu at the top of the page and choose who can open MacroViewer: your class, your school or anyone with the link. It's the full version, with the assistant and updated prices."],["3. Créer ton propre site","3. Create your own website"],["Glisse le fichier MacroViewer.html téléchargé sur","Drag the downloaded MacroViewer.html file onto"],[": en quelques secondes tu obtiens une adresse web gratuite à donner à ta classe. Autre solution gratuite :",": in a few seconds you get a free web address to give to your class. Another free option:"],[". Le site affichera les données du jour du téléchargement : télécharge à nouveau le fichier pour le mettre à jour.",". The site will show the data from the day of the download: download the file again to update it."],["Le téléchargement fonctionne depuis l'appli ouverte sur claude.ai.","Downloading works from the app opened on claude.ai."],["Fichier proposé au téléchargement : MacroViewer.html.","File offered for download: MacroViewer.html."],["Téléchargement annulé.","Download cancelled."],["Le téléchargement n'a pas pu se faire. Réessaie.","The download failed. Try again."],
-  ["L'assistant a besoin de Claude : ouvre MacroViewer depuis claude.ai en étant connecté, puis autorise l'appli à utiliser Claude.","The assistant needs Claude: open MacroViewer from claude.ai while signed in, then allow the app to use Claude."],["L'assistant démarre… renvoie ta question dans quelques secondes.","The assistant is starting… send your question again in a few seconds."],["Je réfléchis…","Thinking…"],["Question annulée.","Question cancelled."],["L'assistant n'est pas disponible ici (accès à Claude refusé ou désactivé).","The assistant isn't available here (access to Claude denied or disabled)."],["Trop de questions d'un coup. Réessaie dans un moment.","Too many questions at once. Try again in a moment."],["Reconnecte-toi à Claude pour continuer.","Sign in to Claude again to continue."],["Je ne peux pas répondre à ça. Essaie de reformuler ta question.","I can't answer that. Try rephrasing your question."],["La réponse n'a pas pu arriver. Renvoie ta question.","The answer couldn't come through. Send your question again."],
+  ["Nom ou symbole : Danone, Toyota, NVDA…","Name or ticker: Danone, Toyota, NVDA…"],["Nom ou symbole","Name or ticker"],["Télécharger ou mettre en ligne MacroViewer","Download or publish MacroViewer"],["MacroViewer chez toi ou sur le Web","MacroViewer at home or on the web"],["1. Télécharger l'appli","1. Download the app"],["Un seul fichier,","A single file,"],[", qui s'ouvre dans n'importe quel navigateur, même sans compte. Il contient les cours et les titres de presse du moment, les fiches des principales valeurs, le portefeuille, le glossaire et les histoires. L'assistant IA, la mise à jour automatique des cours et les fiches détaillées des 840 actions restent réservés à l'appli en ligne.",", which opens in any browser, even without an account. It contains the current prices and press headlines, profiles of the main securities, the portfolio, the glossary and the stories. The AI assistant, automatic price updates and detailed profiles of the 840 stocks remain in the online app only."],["Télécharger MacroViewer.html","Download MacroViewer.html"],["2. Partager le lien de l'appli en ligne","2. Share the online app's link"],["Ouvre le menu","Open the"],["en haut de la page et choisis qui peut ouvrir MacroViewer : ta classe, ton lycée ou toute personne disposant du lien. C'est la version complète, avec l'assistant et les cours mis à jour.","menu at the top of the page and choose who can open MacroViewer: your class, your school or anyone with the link. It's the full version, with the assistant and updated prices."],["3. Créer ton propre site","3. Create your own website"],["Glisse le fichier MacroViewer.html téléchargé sur","Drag the downloaded MacroViewer.html file onto"],[": en quelques secondes tu obtiens une adresse web gratuite à donner à ta classe. Autre solution gratuite :",": in a few seconds you get a free web address to give to your class. Another free option:"],[". Le site affichera les données du jour du téléchargement : télécharge à nouveau le fichier pour le mettre à jour.",". The site will show the data from the day of the download: download the file again to update it."],["Le téléchargement fonctionne depuis l'appli en ligne.","Downloading works from the online app."],["Fichier proposé au téléchargement : MacroViewer.html.","File offered for download: MacroViewer.html."],["Téléchargement annulé.","Download cancelled."],["Le téléchargement n'a pas pu se faire. Réessaie.","The download failed. Try again."],
+  ["L'assistant n'est pas disponible pour le moment. Réessaie plus tard.","The assistant isn't available right now. Try again later."],["L'assistant démarre… renvoie ta question dans quelques secondes.","The assistant is starting… send your question again in a few seconds."],["Je réfléchis…","Thinking…"],["Question annulée.","Question cancelled."],["L'assistant n'est pas disponible pour le moment.","The assistant isn't available right now."],["Trop de questions d'un coup. Réessaie dans un moment.","Too many questions at once. Try again in a moment."],["Reconnecte-toi pour continuer.","Sign in again to continue."],["Je ne peux pas répondre à ça. Essaie de reformuler ta question.","I can't answer that. Try rephrasing your question."],["La réponse n'a pas pu arriver. Renvoie ta question.","The answer couldn't come through. Send your question again."],
   ["Quelles introductions en Bourse font l'actualité ?","Which IPOs are in the news?"],["Quels gros rachats ou fusions sont en cours ?","Which big takeovers or mergers are under way?"],["Que s'est-il passé sur les marchés aujourd'hui ?","What happened on the markets today?"],["C'est quoi un ETF ?","What is an ETF?"],["Pourquoi shorter une action ?","Why short a stock?"],["Analyse mon portefeuille","Analyse my portfolio"],
   // types, secteurs, pays
   ["Indice","Index"],["Action","Stock"],["Obligation","Bond"],["n. d.","n/a"],["n. a.","n/a"],
@@ -3958,7 +3960,7 @@ const bpEN = s=>s.replace(/\spb\b/g," bp");
   ["Tu n'as pas de position sur ce titre.","You have no position in this security."],["Ordres automatiques supprimés.","Automatic orders removed."],["Indique des prix positifs.","Enter positive prices."],["Le stop loss doit être sous le cours actuel.","The stop loss must be below the current price."],["Pour un short, le stop loss doit être au-dessus du cours actuel.","For a short, the stop loss must be above the current price."],["Le take profit doit être au-dessus du cours actuel.","The take profit must be above the current price."],["Pour un short, le take profit doit être sous le cours actuel.","For a short, the take profit must be below the current price."],["Ordres automatiques enregistrés.","Automatic orders saved."],
   ["Notifications","Notifications"],["Tout effacer","Clear all"],["Mouvement","Move"],["Aucune notification pour l'instant. Tu seras prévenu ici quand un titre que tu possèdes bouge de plus de 3 % dans la journée, ou quand un stop loss ou un take profit se déclenche.","No notifications yet. You'll be alerted here when a security you own moves more than 3% in a day, or when a stop loss or take profit is triggered."],
   ["Entraîne-toi à investir avec de vrais cours de Bourse, sans risquer un centime.","Practise investing with real stock prices, without risking a cent."],["Comment ça marche","How it works"],["Ton capital","Your capital"],["Choisis un titre","Pick a security"],["Cherche une action, un ETF ou une obligation, ouvre sa fiche et regarde son graphique et ses chiffres.","Search for a stock, an ETF or a bond, open its page and look at its chart and figures."],["Passe un ordre","Place an order"],["Achète si tu penses que le cours va monter, shorte si tu penses qu'il va baisser. L'ordre s'exécute au dernier cours réel.","Buy if you think the price will rise, short if you think it will fall. The order goes through at the latest real price."],["Protège-toi","Protect yourself"],["Ajoute un stop loss pour limiter une perte et un take profit pour encaisser un gain : ils se déclenchent tout seuls.","Add a stop loss to limit a loss and a take profit to lock in a gain: they trigger on their own."],["Suis tes résultats","Track your results"],["Ta performance se met à jour avec les cours. La cloche te prévient quand un de tes titres bouge fort.","Your performance updates with prices. The bell alerts you when one of your securities moves sharply."],
-  ["MacroViewer dans un seul fichier, qui s'ouvre dans n'importe quel navigateur, même sans compte ni connexion à claude.ai.","MacroViewer in a single file that opens in any browser, even without an account or a claude.ai connection."],["Télécharger","Download"],["Inclus","Included"],[": cours, presse, fiches des principales valeurs, portefeuille, glossaire, grandes histoires.",": prices, press, profiles of the main securities, portfolio, glossary, great stories."],["En ligne seulement","Online only"],[": assistant IA, mise à jour automatique des cours, fiches détaillées des 1 100 actions.",": AI assistant, automatic price updates, detailed profiles of the 1,100 stocks."],
+  ["MacroViewer dans un seul fichier, qui s'ouvre dans n'importe quel navigateur.","MacroViewer in a single file that opens in any browser."],["Télécharger","Download"],["Inclus","Included"],[": cours, presse, fiches des principales valeurs, portefeuille, glossaire, grandes histoires.",": prices, press, profiles of the main securities, portfolio, glossary, great stories."],["En ligne seulement","Online only"],[": assistant IA, mise à jour automatique des cours, fiches détaillées des 1 100 actions.",": AI assistant, automatic price updates, detailed profiles of the 1,100 stocks."],
   ["Taux de change","Exchange rates"],["Cours de SES","Economics course"],["Devise","Currency"],["Argentine","Argentina"],["Mexique","Mexico"],["Russie","Russia"],["Arabie saoudite","Saudi Arabia"],["Afrique du Sud","South Africa"],["Turquie","Turkey"],["Indonésie","Indonesia"],
   ["Changer de thème","Change theme"],["Thème clair / sombre","Light / dark theme"],["Image : Wikimedia Commons","Image: Wikimedia Commons"],["domaine public","public domain"],["décision BCE/2003/4","ECB decision 2003/4"],
   ["Blason des Médicis","Medici coat of arms"],["Armoiries des Fugger","Fugger coat of arms"],["Grandes armoiries des Rothschild : le poing serrant cinq flèches","Great coat of arms of the Rothschilds: the fist clutching five arrows"],["Logo de la Fondation Rockefeller","Rockefeller Foundation logo"],["Logo de JPMorgan Chase","JPMorgan Chase logo"],["Logo de Wendel","Wendel logo"],["Logo de L'Oréal","L'Oréal logo"],["Logo de LVMH","LVMH logo"]
@@ -4536,44 +4538,55 @@ function drawLine(cv,hist,opts={}){
 }
 
 /* ---------- Portefeuille (achat, vente, vente à découvert) ---------- */
+// le portefeuille actif : le portefeuille personnel (S) ou celui d'un concours (concours.js)
+let ACTIVE=null;   // {group, me:{cash,pos,trades}} quand on joue dans un concours
+const PF = ()=>ACTIVE?ACTIVE.me:S;
+const pfStart = ()=>ACTIVE?Number(ACTIVE.group.start_cash):START_CASH;
+const pfLev = ()=>ACTIVE?Number(ACTIVE.group.leverage)||1:1;
+const savePF = ()=>{ if(ACTIVE&&window.CONTEST) CONTEST.save(); else save(); };
 const unitEur = id=>toEur(price(id),A[id].cur);
-const posValueEur = id=>{const p=S.pos[id]; return p?unitEur(id)*p.qty:0;};      // négatif pour un short
-const posPL = id=>{const p=S.pos[id]; return p?(unitEur(id)-p.cost)*p.qty:0;};
-const longValue = ()=>Object.keys(S.pos).reduce((s,id)=>s+Math.max(0,posValueEur(id)),0);
-const shortExposure = ()=>Object.keys(S.pos).reduce((s,id)=>s+Math.max(0,-posValueEur(id)),0);
-const pfTotal = ()=>S.cash+Object.keys(S.pos).reduce((s,id)=>s+posValueEur(id),0);
+const posValueEur = id=>{const p=PF().pos[id]; return p&&A[id]?unitEur(id)*p.qty:0;};      // négatif pour un short
+const posPL = id=>{const p=PF().pos[id]; return p&&A[id]?(unitEur(id)-p.cost)*p.qty:0;};
+const longValue = ()=>Object.keys(PF().pos).reduce((s,id)=>s+Math.max(0,posValueEur(id)),0);
+const shortExposure = ()=>Object.keys(PF().pos).reduce((s,id)=>s+Math.max(0,-posValueEur(id)),0);
+const pfTotal = ()=>PF().cash+Object.keys(PF().pos).reduce((s,id)=>s+posValueEur(id),0);
 function trade(id,side,qty){
-  const a=A[id]; qty=Math.floor(Number(qty));
+  const a=A[id], P=PF(), lev=pfLev(); qty=Math.floor(Number(qty));
+  if(ACTIVE&&window.CONTEST){ const st=CONTEST.blocked(side); if(st) return {err:st}; }
   if(!(qty>0)) return {err:"Indique une quantité d'au moins 1."};
-  const u=unitEur(id), total=u*qty, p=S.pos[id]||{qty:0,cost:0};
+  const u=unitEur(id), total=u*qty, p=P.pos[id]||{qty:0,cost:0};
+  // avec effet de levier, l'exposition totale peut atteindre « levier × valeur du portefeuille »
+  const levErr=()=>lev>1&&longValue()+shortExposure()+total>pfTotal()*lev+1e-9?`Limite du levier ×${lev} atteinte : ton exposition ne peut pas dépasser ${fmtEur(pfTotal()*lev)}.`:"";
   if(side==="buy"){
     if(p.qty<0) return {err:"Tu es vendeur à découvert sur ce titre : utilise « Racheter » pour fermer ta position."};
-    if(total>S.cash+1e-9) return {err:`Pas assez de liquidités : il te faut ${fmtEur(total)}, tu as ${fmtEur(S.cash)}.`};
-    p.cost=(p.cost*p.qty+total)/(p.qty+qty); p.qty+=qty; S.cash-=total;
+    if(lev>1){ const e=levErr(); if(e) return {err:e}; }
+    else if(total>P.cash+1e-9) return {err:`Pas assez de liquidités : il te faut ${fmtEur(total)}, tu as ${fmtEur(P.cash)}.`};
+    p.cost=(p.cost*p.qty+total)/(p.qty+qty); p.qty+=qty; P.cash-=total;
   } else if(side==="sell"){
     if(p.qty<qty) return {err:`Tu ne possèdes que ${Math.max(0,p.qty)} titre(s) ${a.name}.`};
-    p.qty-=qty; S.cash+=total;
+    p.qty-=qty; P.cash+=total;
   } else if(side==="short"){
     if(p.qty>0) return {err:"Tu possèdes déjà ce titre. Vends-le avant de parier sur sa baisse."};
-    if(shortExposure()+total>pfTotal()) return {err:`Limite atteinte : tes ventes à découvert ne peuvent pas dépasser la valeur de ton portefeuille (${fmtEur(pfTotal())}).`};
-    const n=-p.qty; p.cost=(p.cost*n+total)/(n+qty); p.qty-=qty; S.cash+=total;
+    if(lev>1){ const e=levErr(); if(e) return {err:e}; }
+    else if(shortExposure()+total>pfTotal()) return {err:`Limite atteinte : tes ventes à découvert ne peuvent pas dépasser la valeur de ton portefeuille (${fmtEur(pfTotal())}).`};
+    const n=-p.qty; p.cost=(p.cost*n+total)/(n+qty); p.qty-=qty; P.cash+=total;
   } else if(side==="cover"){
     if(-p.qty<qty) return {err:`Tu n'as que ${Math.max(0,-p.qty)} titre(s) vendu(s) à découvert.`};
-    if(total>S.cash+1e-9) return {err:`Pas assez de liquidités pour racheter : il te faut ${fmtEur(total)}.`};
-    p.qty+=qty; S.cash-=total;
+    if(lev===1&&total>P.cash+1e-9) return {err:`Pas assez de liquidités pour racheter : il te faut ${fmtEur(total)}.`};
+    p.qty+=qty; P.cash-=total;
   }
-  if(p.qty===0) delete S.pos[id]; else S.pos[id]=p;
-  S.trades.unshift({t:Date.now(),id,side,qty,px:price(id),eur:total}); S.trades=S.trades.slice(0,200);
-  save();
+  if(p.qty===0) delete P.pos[id]; else P.pos[id]=p;
+  P.trades.unshift({t:Date.now(),id,side,qty,px:price(id),eur:total}); P.trades=P.trades.slice(0,200);
+  savePF();
   const verb={buy:"Achat",sell:"Vente",short:"Vente à découvert",cover:"Rachat"}[side];
-  return {ok:`${verb} de ${qty} × ${a.name} pour ${fmtEur(total)}.`};
+  return {ok:`${verb} de ${qty} × ${a.name} pour ${fmtEur(total)}${ACTIVE?` (concours « ${ACTIVE.group.name} »)`:""}.`};
 }
-const SIDE = {buy:["Achat","up"],sell:["Vente","down"],short:["Short","down"],cover:["Rachat","up"]};
+const SIDE = {buy:["Achat","up"],sell:["Vente","down"],short:["Short","down"],cover:["Rachat","up"],liquidation:["Liquidation","down"]};
 
 /* ---------- Stop loss, take profit et notifications ---------- */
 function setSLTP(id,action){
-  const p=S.pos[id]; if(!p) return {err:"Tu n'as pas de position sur ce titre."};
-  if(action==="clear"){ delete p.sl; delete p.tp; save(); return {ok:"Ordres automatiques supprimés."}; }
+  const p=PF().pos[id]; if(!p) return {err:"Tu n'as pas de position sur ce titre."};
+  if(action==="clear"){ delete p.sl; delete p.tp; savePF(); return {ok:"Ordres automatiques supprimés."}; }
   const num=s=>{ const v=String(s||"").trim().replace(",","."); return v===""?null:+v; };
   const sl=num($("#sl")&&$("#sl").value), tp=num($("#tp")&&$("#tp").value), px=price(id), long=p.qty>0;
   if((sl!=null&&!(sl>0))||(tp!=null&&!(tp>0))) return {err:"Indique des prix positifs."};
@@ -4581,7 +4594,7 @@ function setSLTP(id,action){
   if(tp!=null&&(long?tp<=px:tp>=px)) return {err:long?"Le take profit doit être au-dessus du cours actuel.":"Pour un short, le take profit doit être sous le cours actuel."};
   if(sl==null) delete p.sl; else p.sl=sl;
   if(tp==null) delete p.tp; else p.tp=tp;
-  save(); return {ok:"Ordres automatiques enregistrés."};
+  savePF(); return {ok:"Ordres automatiques enregistrés."};
 }
 function notify(kind,id,text){
   S.notifs=S.notifs||[]; S.notifs.unshift({t:Date.now(),kind,id,text}); S.notifs=S.notifs.slice(0,60);
@@ -4592,8 +4605,8 @@ function checkAlerts(){
   if(!S.profile) return;
   let changed=false; const day=new Date().toISOString().slice(0,10);
   S.moveSeen=S.moveSeen||{};
-  for(const id of Object.keys(S.pos)){
-    const p=S.pos[id], a=A[id]; if(!a||!PX[id]) continue;
+  for(const id of Object.keys(PF().pos)){
+    const p=PF().pos[id], a=A[id]; if(!a||!PX[id]) continue;
     const px=price(id), long=p.qty>0, n=Math.abs(p.qty), pxTxtA=fmt(px,2)+" "+CUR_SYM[a.cur];
     const hitSL=p.sl!=null&&(long?px<=p.sl:px>=p.sl), hitTP=p.tp!=null&&(long?px>=p.tp:px<=p.tp);
     if(hitSL||hitTP){
@@ -4676,7 +4689,7 @@ function homeView(){
   <div class="grid g-main">
     ${panel("Ma watchlist","WL",watch.length?quoteTable(watch):`<p class="pb note">Ta watchlist est vide. Clique sur « Modifier » pour choisir des titres.</p>`,`<button class="linkish" data-edit-watch>Modifier</button>`)}
     <div class="stack">
-      ${panel("Portefeuille virtuel","PORT",`<div class="kvs"><div class="kv big"><small>Valeur</small><span class="num" data-f="pf-total">${fmtEur(tot)}</span></div><div class="kv"><small>Depuis le départ</small><span class="num ${cls(tot-START_CASH)}" data-f="pf-perf">${pct((tot/START_CASH-1)*100)}</span></div></div>`,`<button class="linkish" data-go="portefeuille">Gérer</button>`)}
+      ${panel(ACTIVE?"Concours : "+esc(ACTIVE.group.name):"Portefeuille virtuel","PORT",`<div class="kvs"><div class="kv big"><small>Valeur</small><span class="num" data-f="pf-total">${fmtEur(tot)}</span></div><div class="kv"><small>Depuis le départ</small><span class="num ${cls(tot-pfStart())}" data-f="pf-perf">${pct((tot/pfStart()-1)*100)}</span></div></div>`,`<button class="linkish" data-go="portefeuille">Gérer</button>`)}
     </div>
   </div>
   <div class="grid g-main">
@@ -5087,7 +5100,7 @@ function divPanel(a){
 function detailView(){
   if(A[detailId].type==="devise") return fxDetailView();
   const a=A[detailId], b=a.type==="obligation", isIx=a.type==="indice", isSt=a.type==="action", isEtf=a.type==="etf";
-  const p=S.pos[a.id], w=isWatched(a.id), M=MARKET.a[a.id];
+  const p=PF().pos[a.id], w=isWatched(a.id), M=MARKET.a[a.id];
   const F=(M&&M.fin)||(a.uni?{mcap:a.mcap,pe:a.upe,dy:a.udy}:null);
   const waiting=a.uni&&!M;
   const back={indice:"actions",action:"actions",obligation:"obligations",etf:"etf"}[a.type];
@@ -5144,7 +5157,8 @@ function detailView(){
     ${isIx?panel("Investir sur cet indice","ETF",`<div class="pb"><p style="margin:0">On ne peut pas acheter un indice directement : c'est juste un calcul. Pour investir dessus, on achète un ETF qui le copie.</p>${etf?`<div class="btns" style="margin-top:12px"><button class="btn primary" data-asset="${etf.id}">Voir l'ETF ${esc(etf.name)}</button></div>`:""}</div>`):
     panel("Passer un ordre","ORD",`<div class="pb trade">
         <div class="field"><label for="qty">Quantité</label><input id="qty" type="number" min="1" step="1" value="1" inputmode="numeric"></div>
-        <div class="note">Montant : <span class="num" id="est">${fmtEur(unitEur(a.id))}</span> · Liquidités : <span class="num" data-f="cash">${fmtEur(S.cash)}</span></div>
+        <div class="note">Montant : <span class="num" id="est">${fmtEur(unitEur(a.id))}</span> · Liquidités : <span class="num" data-f="cash">${fmtEur(PF().cash)}</span>${ACTIVE&&pfLev()>1?` · Levier ×${pfLev()} : exposition max <span class="num">${fmtEur(pfTotal()*pfLev())}</span>`:""}</div>
+        ${window.CONTEST?CONTEST.tradeSwitch():""}
         <div class="note">${posTxt}</div>
         <div class="tgrid">
           <button class="btn buy" data-trade="buy" ${p&&p.qty<0?"disabled":""}>Acheter<small>parier sur la hausse</small></button>
@@ -5167,7 +5181,7 @@ function detailView(){
     ${isIx?"":`<p class="note" style="margin:0"><b>Shorter</b> : vendre un titre emprunté pour le racheter plus tard. Tu gagnes s'il baisse, tu perds s'il monte.</p>`}
     </div>
   </div>
-  ${waiting?panel("Fiche complète","DATA",`<p class="pb" style="margin:0">${dbRef&&a.doc?"Chargement des graphiques, des dividendes et de la grille Graham &amp; Buffett…":"Les graphiques sur plusieurs années, les dividendes et la grille Graham &amp; Buffett de cette action s'affichent dans l'appli en ligne, ouverte sur claude.ai avec un compte connecté."}</p>`)
+  ${waiting?panel("Fiche complète","DATA",`<p class="pb" style="margin:0">${dbRef&&a.doc?"Chargement des graphiques, des dividendes et de la grille Graham &amp; Buffett…":"Les graphiques sur plusieurs années, les dividendes et la grille Graham &amp; Buffett de cette action s'affichent dans l'appli en ligne."}</p>`)
     :b?"":isIx?perfPanel:`<div class="grid g-half">${perfPanel}${divPanel(a)}</div>`}
   ${isIx?members(a):""}
   ${isSt&&!waiting?grille(a)+PRINCIPLES:""}`;
@@ -5180,11 +5194,11 @@ function members(ix){
 }
 
 function portfolioView(){
-  const ids=Object.keys(S.pos), tot=pfTotal();
-  const by={action:0,etf:0,obligation:0}; ids.forEach(id=>{const v=posValueEur(id); if(v>0) by[A[id].type]+=v;});
+  const P=PF(), ids=Object.keys(P.pos).filter(id=>A[id]), tot=pfTotal(), start=pfStart();
+  const by={action:0,etf:0,obligation:0,devise:0,indice:0}; ids.forEach(id=>{const v=posValueEur(id); if(v>0) by[A[id].type]=(by[A[id].type]||0)+v;});
   const colors={cash:"#24375e",action:"#2f7cf6",etf:"#79bcff",obligation:"#9aa7ff"};
-  const gross=S.cash+by.action+by.etf+by.obligation;
-  const parts=[["cash","Liquidités",S.cash],["action","Actions",by.action],["etf","ETF",by.etf],["obligation","Obligations",by.obligation]].filter(x=>x[2]>0.005);
+  const cashPos=Math.max(0,P.cash), gross=cashPos+by.action+by.etf+by.obligation;
+  const parts=[["cash","Liquidités",cashPos],["action","Actions",by.action],["etf","ETF",by.etf],["obligation","Obligations",by.obligation]].filter(x=>x[2]>0.005);
   const steps=[
     ["Ton capital",`Tu reçois ${fmtEur(START_CASH)} virtuels. Aucun vrai argent n'est en jeu : c'est un entraînement.`],
     ["Choisis un titre","Cherche une action, un ETF ou une obligation, ouvre sa fiche et regarde son graphique et ses chiffres."],
@@ -5193,23 +5207,25 @@ function portfolioView(){
     ["Suis tes résultats","Ta performance se met à jour avec les cours. La cloche te prévient quand un de tes titres bouge fort."],
   ];
   return `<div><h1 class="page">Portefeuille virtuel</h1><p class="lede">Entraîne-toi à investir avec de vrais cours de Bourse, sans risquer un centime.</p></div>
-  <section class="howto" aria-label="Comment ça marche">${steps.map(([h,p],i)=>`<div class="step"><span class="n">${i+1}</span><b>${h}</b><p>${p}</p></div>`).join("")}</section>
-  ${panel("Synthèse","SUM",`<div class="kvs">
+  ${window.CONTEST?CONTEST.panelHTML():""}
+  ${ACTIVE?"":`<section class="howto" aria-label="Comment ça marche">${steps.map(([h,p],i)=>`<div class="step"><span class="n">${i+1}</span><b>${h}</b><p>${p}</p></div>`).join("")}</section>`}
+  ${panel(ACTIVE?`Mon portefeuille dans « ${esc(ACTIVE.group.name)} »`:"Synthèse","SUM",`<div class="kvs">
       <div class="kv big"><small>Valeur totale</small><span class="num" data-f="pf-total">${fmtEur(tot)}</span></div>
-      <div class="kv"><small>Performance</small><span class="num ${cls(tot-START_CASH)}" data-f="pf-perf">${pct((tot/START_CASH-1)*100)}</span></div>
-      <div class="kv"><small>Gain / perte</small><span class="num ${cls(tot-START_CASH)}" data-f="pf-gain">${sEur(tot-START_CASH)}</span></div>
-      <div class="kv"><small>Liquidités</small><span class="num" data-f="cash">${fmtEur(S.cash)}</span></div>
+      <div class="kv"><small>Performance</small><span class="num ${cls(tot-start)}" data-f="pf-perf">${pct((tot/start-1)*100)}</span></div>
+      <div class="kv"><small>Gain / perte</small><span class="num ${cls(tot-start)}" data-f="pf-gain">${sEur(tot-start)}</span></div>
+      <div class="kv"><small>Liquidités</small><span class="num" data-f="cash">${fmtEur(P.cash)}</span></div>
       <div class="kv"><small>Exposition short</small><span class="num" data-f="pf-short">${fmtEur(shortExposure())}</span></div>
+      ${pfLev()>1?`<div class="kv"><small>Levier utilisé</small><span class="num">×${fmt((longValue()+shortExposure())/Math.max(tot,1),2)} / ×${pfLev()}</span></div>`:""}
     </div>
     <div class="alloc">${parts.map(x=>`<span style="width:${x[2]/gross*100}%;background:${colors[x[0]]}"></span>`).join("")}</div>
     <div class="legend">${parts.map(x=>`<span><i style="background:${colors[x[0]]}"></i>${x[1]} ${fmt(x[2]/gross*100,0)} %</span>`).join("")}</div>`)}
   ${panel("Mes positions","POS",ids.length?`<div class="tbl-wrap"><table><thead><tr><th>Titre</th><th>Sens</th><th>Qté</th><th>Prix moyen</th><th>Cours</th><th>Valeur</th><th>+/- value</th></tr></thead><tbody>
-    ${ids.map(id=>{const a=A[id],p=S.pos[id],sh=p.qty<0;return `<tr class="click" data-asset="${id}"><td><div class="nm">${badge(a)}<div><b>${esc(a.name)}</b><small>${TYPE_LABEL[a.type]}</small></div></div></td><td><span class="tag ${sh?"short":"long"}">${sh?"Short":"Long"}</span></td><td class="num">${Math.abs(p.qty)}</td><td class="num">${fmtEur(p.cost)}</td><td class="num">${live(id,"px",fmtPx(a))}</td><td class="num">${live(id,"pv",fmtEur(posValueEur(id)))}</td><td class="num">${live(id,"pl","—")}</td></tr>`;}).join("")}
+    ${ids.map(id=>{const a=A[id],p=P.pos[id],sh=p.qty<0;return `<tr class="click" data-asset="${id}"><td><div class="nm">${badge(a)}<div><b>${esc(a.name)}</b><small>${TYPE_LABEL[a.type]}</small></div></div></td><td><span class="tag ${sh?"short":"long"}">${sh?"Short":"Long"}</span></td><td class="num">${Math.abs(p.qty)}</td><td class="num">${fmtEur(p.cost)}</td><td class="num">${live(id,"px",fmtPx(a))}</td><td class="num">${live(id,"pv",fmtEur(posValueEur(id)))}</td><td class="num">${live(id,"pl","—")}</td></tr>`;}).join("")}
     </tbody></table></div>`:`<p class="pb note" style="margin:0">Aucune position pour l'instant. Va dans <button class="linkish" data-go="actions">Actions</button>, <button class="linkish" data-go="etf">ETF</button> ou <button class="linkish" data-go="obligations">Obligations</button>, ouvre un titre et clique sur « Acheter » ou « Shorter ». Conseil : commence par un ETF pour voir l'effet de la diversification.</p>`)}
-  ${panel("Historique des ordres","HIST",S.trades.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Ordre</th><th>Titre</th><th>Qté</th><th>Montant</th></tr></thead><tbody>
-    ${S.trades.slice(0,30).map(t=>`<tr><td class="num">${new Date(t.t).toLocaleString(LOC(),{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</td><td class="${SIDE[t.side][1]}">${SIDE[t.side][0]}</td><td>${esc(A[t.id]?.name||t.id)}</td><td class="num">${t.qty}</td><td class="num">${fmtEur(t.eur)}</td></tr>`).join("")}
+  ${panel("Historique des ordres","HIST",P.trades.length?`<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Ordre</th><th>Titre</th><th>Qté</th><th>Montant</th></tr></thead><tbody>
+    ${P.trades.slice(0,30).map(t=>`<tr><td class="num">${new Date(t.t).toLocaleString(LOC(),{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}</td><td class="${SIDE[t.side][1]}">${SIDE[t.side][0]}</td><td>${esc(A[t.id]?.name||t.id)}</td><td class="num">${t.qty}</td><td class="num">${fmtEur(t.eur)}</td></tr>`).join("")}
     </tbody></table></div>`:`<p class="pb note" style="margin:0">Tes ordres apparaîtront ici.</p>`)}
-  <div class="btns"><button class="btn" data-ask="Analyse mon portefeuille virtuel : est-il diversifié ? Quels risques je prends ?">Faire analyser mon portefeuille</button><button class="btn" id="reset">Repartir de zéro</button><span class="msg" id="reset-msg"></span></div>`;
+  <div class="btns"><button class="btn" data-ask="Analyse mon portefeuille virtuel : est-il diversifié ? Quels risques je prends ?">Faire analyser mon portefeuille</button>${ACTIVE?"":`<button class="btn" id="reset">Repartir de zéro</button><span class="msg" id="reset-msg"></span>`}</div>`;
 }
 
 function glossaryView(){
@@ -5285,12 +5301,12 @@ function updateLive(){
     else if(f==="chb"){const c=yieldChg(a); el.textContent=bondChgTxt(a); el.classList.toggle("up",c>=0); el.classList.toggle("down",c<0);}
     else if(f==="bpx") el.textContent=fmt(price(id));
     else if(f==="pf-total") el.textContent=fmtEur(pfTotal());
-    else if(f==="pf-perf"){const c=(pfTotal()/START_CASH-1)*100; el.textContent=pct(c); el.className="num "+cls(c);}
-    else if(f==="pf-gain"){const g=pfTotal()-START_CASH; el.textContent=sEur(g); el.className="num "+cls(g);}
+    else if(f==="pf-perf"){const c=(pfTotal()/pfStart()-1)*100; el.textContent=pct(c); el.className="num "+cls(c);}
+    else if(f==="pf-gain"){const g=pfTotal()-pfStart(); el.textContent=sEur(g); el.className="num "+cls(g);}
     else if(f==="pf-short") el.textContent=fmtEur(shortExposure());
-    else if(f==="cash") el.textContent=fmtEur(S.cash);
+    else if(f==="cash") el.textContent=fmtEur(PF().cash);
     else if(f==="pv") el.textContent=fmtEur(posValueEur(id));
-    else if(f==="pl"&&S.pos[id]){const g=posPL(id); el.textContent=sEur(g); el.className=cls(g);}
+    else if(f==="pl"&&PF().pos[id]){const g=posPL(id); el.textContent=sEur(g); el.className=cls(g);}
   });
   document.querySelectorAll("canvas[data-spark]").forEach(cv=>{const P=PX[cv.dataset.spark]; if(P.hist.length>2) drawLine(cv,P.hist,{ref:P.open});});
   document.querySelectorAll("canvas[data-big]").forEach(cv=>{
@@ -5400,7 +5416,7 @@ function openShare(){
     <div class="dl-hero">
       <svg class="logo" style="width:64px;height:64px" aria-hidden="true"><use href="#logo"/></svg>
       <h2>Télécharger l'appli</h2>
-      <p>MacroViewer dans un seul fichier, qui s'ouvre dans n'importe quel navigateur, même sans compte ni connexion à claude.ai.</p>
+      <p>MacroViewer dans un seul fichier, qui s'ouvre dans n'importe quel navigateur.</p>
       <div class="dl-file"><span class="dl-ic">HTML</span><span><b>MacroViewer.html</b><small>Cours et presse du ${asOfTxt()}</small></span></div>
       <button class="btn primary dl-go" data-dl>Télécharger</button>
       <span class="msg" id="dl-msg" role="status"></span>
@@ -5534,9 +5550,9 @@ function closeChat(){ $("#chat").hidden=true; $("#fab").hidden=false; }
 function askAssistant(q){ openChat(); $("#chat-q").value=askText(q); sendChat(); }
 function chatErr(e){
   const c=e&&e.code;
-  if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(c)){sampleState="off"; return "L'assistant n'est pas disponible ici (accès à Claude refusé ou désactivé).";}
+  if(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(c)){sampleState="off"; return "L'assistant n'est pas disponible pour le moment.";}
   if(c==="rate_limited") return "Trop de questions d'un coup. Réessaie dans un moment.";
-  if(c==="session_expired") return "Reconnecte-toi à Claude pour continuer.";
+  if(c==="session_expired") return "Reconnecte-toi pour continuer.";
   if(c==="refused") return "Je ne peux pas répondre à ça. Essaie de reformuler ta question.";
   return "La réponse n'a pas pu arriver. Renvoie ta question.";
 }
@@ -5627,7 +5643,7 @@ async function pullSiteData(){
   const [Q,N]=await Promise.all([fetchSiteJson("quotes.json"),fetchSiteJson("news.json")]);
   if(Q&&Q.q&&Q.asOf>QUOTES.asOf){
     Q.q=Object.assign({},QUOTES.q,Q.q);   // un cours manquant garde sa dernière valeur
-    loadQuotes(Q); FLASHES=buildFlashes(); checkAlerts(); render(true);
+    loadQuotes(Q); FLASHES=buildFlashes(); checkAlerts(); if(window.CONTEST) CONTEST.onPrices(); render(true);
   }
   if(N&&N.items&&N.asOf>NEWS.asOf){ NEWS=N; if(view==="accueil"||view==="news") render(true); }
 }
@@ -5676,4 +5692,6 @@ async function pullSiteData(){
   }).catch(()=>{});
 })();
 </script>
+<script src="concours-config.js"></script>
+<script src="concours.js"></script>
 <script src="ia.js"></script>
