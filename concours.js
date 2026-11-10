@@ -29,8 +29,9 @@
       join:async(code,pseudo)=>chk(await sb.rpc("join_group",{p_code:code,p_pseudo:pseudo})),
       myGroups:async()=>chk(await sb.from("members").select("*, groups(*)").eq("player_id",uid)),
       members:async code=>chk(await sb.from("members").select("player_id,pseudo,cash,pos,value,updated_at").eq("group_code",code)),
-      saveMe:async(code,d)=>{ chk(await sb.from("members").update(d).eq("group_code",code).eq("player_id",uid)); },
-      logOrders:async rows=>{ if(rows.length) chk(await sb.from("orders").insert(rows)); },
+      // un seul appel, vérifié par le serveur : liquidités et quantités doivent correspondre aux ordres
+      // renvoie les liquidités et la valeur calculées par le serveur, avec les cours officiels
+      saveMine:async(code,d,orders)=>chk(await sb.rpc("save_portfolio",{p_code:code,p_cash:d.cash,p_pos:d.pos,p_trades:d.trades,p_value:d.value,p_orders:orders})),
       saveDaily:async(code,rows)=>chk(await sb.rpc("save_daily_rank",{p_code:code,p_rows:rows})),
       daily:async code=>chk(await sb.from("daily_ranks").select("day,player_id,pseudo,value,rank").eq("group_code",code).order("day").order("rank"))};
   }
@@ -46,8 +47,20 @@
         m={group_code:code,player_id:uid,pseudo,cash:g.start_cash,pos:{},trades:[],value:g.start_cash,updated_at:new Date().toISOString()}; d.members.push(m); put(d); return m; },
       async myGroups(){ const d=db(); return d.members.filter(m=>m.player_id===uid).map(m=>({...m,groups:d.groups[m.group_code]})); },
       async members(code){ return db().members.filter(m=>m.group_code===code); },
-      async saveMe(code,x){ const d=db(), m=d.members.find(m=>m.group_code===code&&m.player_id===uid); if(Date.now()>Date.parse(d.groups[code].ends_at)+3e5) throw E("row-level security"); Object.assign(m,x); put(d); },
-      async logOrders(rows){ const d=db(); d.orders.push(...rows); put(d); },
+      async saveMine(code,x,orders){ const d=db(), g=d.groups[code], m=d.members.find(m=>m.group_code===code&&m.player_id===uid);
+        if(Date.now()<Date.parse(g.starts_at)||Date.now()>Date.parse(g.ends_at)+3e5) throw E("permission refusée");
+        // mêmes vérifications que la fonction save_portfolio de Supabase
+        let cash=Number(m.cash); const run={}; const q0=a=>a in run?run[a]:Number(m.pos[a]?.qty||0);
+        for(const o of orders){ let q=q0(o.asset), s;
+          if(o.side==="buy"){ s=-o.amount_eur; q+=o.qty; } else if(o.side==="sell"){ if(q<o.qty) throw E("Portefeuille incohérent"); s=o.amount_eur; q-=o.qty; }
+          else if(o.side==="short"){ s=o.amount_eur; q-=o.qty; } else if(o.side==="cover"){ s=-o.amount_eur; q+=o.qty; } else { s=q>0?o.amount_eur:-o.amount_eur; q=0; }
+          cash+=s; run[o.asset]=q; }
+        if(Math.abs(cash-x.cash)>0.01*orders.length+0.02) throw E("Portefeuille incohérent (liquidités)");
+        for(const a of new Set([...Object.keys(m.pos),...Object.keys(x.pos),...Object.keys(run)])) if(q0(a)!==Number(x.pos[a]?.qty||0)) throw E("Portefeuille incohérent (quantités)");
+        // simulation des cours officiels : le serveur calcule à 0,1 % près du prix du navigateur
+        const srvCash=Math.round((cash-orders.reduce((s,o)=>s+(o.side==="buy"?1:o.side==="cover"?-1:0)*o.amount_eur*0.001,0))*100)/100;
+        Object.assign(m,JSON.parse(JSON.stringify(x)),{cash:srvCash}); d.orders.push(...orders.map(o=>({...o,group_code:code,player_id:uid}))); put(d);
+        return {cash:srvCash,value:x.value}; },
       async saveDaily(code,rows){ const d=db(), g=d.groups[code], now=Date.now(); d.daily=d.daily||[];
         if(now<Date.parse(g.starts_at)) return 0;
         let day=parisDay(now);
@@ -73,6 +86,8 @@
     if(/termin/i.test(m)) return "Ce concours est terminé : on ne peut plus le rejoindre.";
     if(/members_pseudo_unique/.test(m)) return "Ce pseudo est déjà pris dans ce groupe. Choisis-en un autre.";
     if(/anonymous/i.test(m)) return "La connexion anonyme est désactivée dans Supabase (Authentication → Sign In / Providers → Allow anonymous sign-ins).";
+    if(/Inscriptions closes/i.test(m)) return "Les inscriptions à ce concours sont closes : on ne peut plus le rejoindre 24 h après son début.";
+    if(/incoh/i.test(m)) return "Le serveur a refusé cet enregistrement. Ton portefeuille de concours a été rechargé tel qu'il est enregistré.";
     if(/row-level security|permission/i.test(m)) return "Action refusée : le concours n'est pas en cours.";
     if(/fetch|network|Chargement/i.test(m)) return "Impossible de joindre le serveur des concours. Vérifie ta connexion.";
     return "Erreur du serveur des concours : "+m;
@@ -149,13 +164,25 @@
   async function flush(E){
     const code=E.group.code, me=E.me, prev=ACTIVE; ACTIVE=E; const value=pfTotal(); ACTIVE=prev;
     const fresh=me.trades.filter(t=>t.t>(lastLogged[code]||0));
+    // ordres envoyés du plus ancien au plus récent (le serveur les rejoue dans cet ordre)
+    const orders=fresh.slice().reverse().map(t=>({asset:t.id,side:t.side,qty:Math.abs(t.qty),amount_eur:Math.round(Math.abs(t.eur)*100)/100}));
     try{
-      await api.saveMe(code,{cash:me.cash,pos:me.pos,trades:me.trades.slice(0,100),value,updated_at:new Date().toISOString()});
-      await api.logOrders(fresh.map(t=>({group_code:code,asset:t.id,side:t.side,qty:t.qty,amount_eur:Math.round(t.eur*100)/100})));
+      const sent=me.cash;
+      const res=await api.saveMine(code,{cash:sent,pos:me.pos,trades:me.trades.slice(0,100),value:Math.round(value*100)/100},orders);
+      // le serveur fait foi : on reprend ses liquidités (en gardant les ordres passés pendant l'envoi)
+      if(res&&isFinite(Number(res.cash))){ me.cash+=Number(res.cash)-sent; if(ACTIVE===E&&view==="portefeuille") render(true); }
       if(fresh.length) lastLogged[code]=Math.max(...fresh.map(t=>t.t));
+      lastValSave[code]=Date.now();
       const row=(members[code]||[]).find(r=>r.player_id===api.uid); if(row){ row.cash=me.cash; row.pos=me.pos; row.value=value; }
-    }catch(e){ toast("Le concours n'a pas pu enregistrer ton ordre : "+errTxt(e),"sl"); }
+    }catch(e){
+      toast("Le concours n'a pas pu enregistrer ton ordre : "+errTxt(e),"sl");
+      // le portefeuille affiché ne correspond plus à celui du serveur : on recharge la version enregistrée
+      if(/incoh|permission|row-level/i.test(String(e&&(e.message||e.details)||e))){ try{ await loadMine(); fetchMembers(code); render(true); }catch(err){} }
+    }
   }
+  // la valeur de mon portefeuille est enregistrée régulièrement (sert au classement du jour)
+  const lastValSave={};
+  function saveValue(){ if(ACTIVE&&api&&!saveT&&status(ACTIVE.group)==="live"&&Date.now()-(lastValSave[ACTIVE.group.code]||0)>=3e5) flush(ACTIVE); }
 
   /* ---------- règles du concours ---------- */
   const T=x=>Date.parse(x);
@@ -308,7 +335,7 @@
   });
 
   // classement : mis à jour toutes les minutes pendant qu'on regarde un concours
-  pollT=setInterval(()=>{ if(ACTIVE&&api){ fetchMembers(ACTIVE.group.code); onPrices(); } },60000);
+  pollT=setInterval(()=>{ if(ACTIVE&&api){ fetchMembers(ACTIVE.group.code); onPrices(); saveValue(); } },60000);
 
   window.CONTEST={panelHTML,tradeSwitch,blocked,save,onPrices,setActive};
   if(configured()&&(lsGet(LS_JOINED)||lsGet(LS_ACTIVE))) init().catch(()=>{});
