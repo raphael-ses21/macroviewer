@@ -23,6 +23,10 @@ jobs:
 
       - name: Relever les cours et les titres
         shell: powershell
+        env:
+          # cours de référence des concours : envoyés au serveur Supabase avec la clé secrète
+          SUPABASE_URL: https://kuzqmyvswslbucuwjczx.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: ./update.ps1 -OutDir .
 
       - name: Publier les nouveaux fichiers

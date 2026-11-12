@@ -63,6 +63,38 @@ $asOf = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 [IO.File]::WriteAllText((Join-Path $OutDir 'quotes.json'), ([ordered]@{ asOf = $asOf; q = $q } | ConvertTo-Json -Depth 6 -Compress), $utf8)
 "OK : $($q.Count) cours" + $(if ($errors) { " (manquants : $($errors.Count))" } else { "" })
 
+# ---------- cours de référence des concours (Supabase) ----------
+# Le serveur des concours recalcule chaque ordre avec ces prix : un joueur ne peut pas annoncer un faux cours.
+# Il faut le secret SUPABASE_SERVICE_KEY dans GitHub (Settings → Secrets and variables → Actions).
+$sbUrl = $env:SUPABASE_URL; $sbKey = $env:SUPABASE_SERVICE_KEY
+$metaFile = Join-Path $PSScriptRoot 'assets_meta.json'
+if ($sbUrl -and $sbKey -and (Test-Path $metaFile)) {
+  try {
+    $meta = [IO.File]::ReadAllText($metaFile, [Text.Encoding]::UTF8) | ConvertFrom-Json
+    $fx = @{ EUR = 1.0 }
+    foreach ($k in @($q.PSBase.Keys)) { if ($k -match '^eur([a-z]{3})$' -and $q[$k].p) { $fx[$Matches[1].ToUpper()] = [double]$q[$k].p } }
+    $coupon = [double]$meta.coupon; $now = [DateTimeOffset]::UtcNow.ToString('o'); $rows = New-Object System.Collections.Generic.List[object]
+    foreach ($e in $meta.a.PSObject.Properties) {
+      $id = $e.Name; if (-not $q.Contains($id)) { continue }; $r = $q[$id]
+      if ($e.Value -is [array]) {     # obligation : prix d'une obligation à coupon 3 %, calculé à partir du taux (comme sur le site)
+        $cur = [string]$e.Value[0]; $mat = [int]$e.Value[1]; if ($null -eq $r.y) { continue }
+        $y = [double]$r.y / 100; $px = 0.0; for ($t = 1; $t -le $mat; $t++) { $px += $coupon / [math]::Pow(1 + $y, $t) }; $px += 100 / [math]::Pow(1 + $y, $mat)
+      } else { $cur = [string]$e.Value; if ($null -eq $r.p) { continue }; $px = [double]$r.p }
+      $rate = if ($cur -ne 'pts' -and $fx.ContainsKey($cur)) { $fx[$cur] } else { 1.0 }   # « pts » : pas de conversion, comme sur le site
+      $eur = $px / $rate
+      if ($eur -gt 0 -and -not [double]::IsInfinity($eur) -and -not [double]::IsNaN($eur)) { $rows.Add([ordered]@{ asset = $id; px_eur = [math]::Round($eur, 6); at = $now }) }
+    }
+    $h = @{ apikey = $sbKey; Prefer = 'resolution=merge-duplicates,return=minimal' }
+    if ($sbKey -like 'eyJ*') { $h.Authorization = "Bearer $sbKey" }   # ancienne clé service_role
+    for ($i = 0; $i -lt $rows.Count; $i += 500) {
+      $chunk = $rows.GetRange($i, [math]::Min(500, $rows.Count - $i)).ToArray()
+      $body = ConvertTo-Json -InputObject $chunk -Compress -Depth 3
+      Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/prices" -Headers $h -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30 | Out-Null
+    }
+    "OK : $($rows.Count) cours envoyés au serveur des concours"
+  } catch { "Cours non envoyés au serveur des concours : $($_.Exception.Message)" }
+} else { "Cours des concours non envoyés (secret SUPABASE_SERVICE_KEY absent)" }
+
 # ---------- titres de presse ----------
 $feeds = @(
   @('Le Monde', 'fr', 'https://www.lemonde.fr/economie/rss_full.xml'),
