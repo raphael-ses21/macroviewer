@@ -66,7 +66,7 @@ $asOf = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 # ---------- cours de référence des concours (Supabase) ----------
 # Le serveur des concours recalcule chaque ordre avec ces prix : un joueur ne peut pas annoncer un faux cours.
 # Il faut le secret SUPABASE_SERVICE_KEY dans GitHub (Settings → Secrets and variables → Actions).
-$sbUrl = $env:SUPABASE_URL; $sbKey = $env:SUPABASE_SERVICE_KEY
+$sbUrl = "$env:SUPABASE_URL".Trim().TrimEnd('/'); $sbKey = "$env:SUPABASE_SERVICE_KEY".Trim()   # sans espace ni retour à la ligne collé avec la clé
 $metaFile = Join-Path $PSScriptRoot 'assets_meta.json'
 if ($sbUrl -and $sbKey -and (Test-Path $metaFile)) {
   try {
