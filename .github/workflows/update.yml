@@ -1,7 +1,7 @@
 # Met à jour les cours et les titres de MacroViewer automatiquement
 name: Mise à jour des cours
 
-on:
+on:  
   schedule:
     - cron: "*/15 6-21 * * 1-5"   # toutes les 15 min en semaine, de 7 h à 23 h (heure de Paris)
     - cron: "0 */4 * * 0,6"       # toutes les 4 h le week-end (devises, titres de presse)
@@ -23,6 +23,10 @@ jobs:
 
       - name: Relever les cours et les titres
         shell: powershell
+        env:
+          # cours de référence des concours : envoyés au serveur Supabase avec la clé secrète
+          SUPABASE_URL: https://kuzqmyvswslbucuwjczx.supabase.co
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: ./update.ps1 -OutDir .
 
       - name: Publier les nouveaux fichiers
