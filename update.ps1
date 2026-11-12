@@ -66,7 +66,11 @@ $asOf = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 # ---------- cours de référence des concours (Supabase) ----------
 # Le serveur des concours recalcule chaque ordre avec ces prix : un joueur ne peut pas annoncer un faux cours.
 # Il faut le secret SUPABASE_SERVICE_KEY dans GitHub (Settings → Secrets and variables → Actions).
-$sbUrl = "$env:SUPABASE_URL".Trim().TrimEnd('/'); $sbKey = "$env:SUPABASE_SERVICE_KEY".Trim()   # sans espace ni retour à la ligne collé avec la clé
+$sbUrl = "$env:SUPABASE_URL".Trim().TrimEnd('/')
+# on extrait la clé de ce qui a été collé (elle peut être entourée d'espaces, de retours à la ligne ou d'un libellé)
+$rawKey = "$env:SUPABASE_SERVICE_KEY"; $km = [regex]::Match($rawKey, 'sb_secret_[A-Za-z0-9_\-]+|eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+')
+$sbKey = if ($km.Success) { $km.Value } else { $rawKey -replace '\s', '' }
+if ($sbKey) { "Clé des concours : " + $(if ($sbKey -like 'sb_secret_*') { 'clé secrète sb_secret' } elseif ($sbKey -like 'eyJ*') { 'ancienne clé service_role' } elseif ($sbKey -like 'sb_publishable_*') { 'ATTENTION : clé publique (publishable), il faut la clé SECRÈTE' } else { "format inconnu ($($sbKey.Length) caractères)" }) }
 $metaFile = Join-Path $PSScriptRoot 'assets_meta.json'
 if ($sbUrl -and $sbKey -and (Test-Path $metaFile)) {
   try {
