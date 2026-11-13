@@ -8,6 +8,10 @@ $utf8 = New-Object Text.UTF8Encoding($false)
 # ---------- cours ----------
 $yahoo = [ordered]@{ spx='^GSPC'; ndx='^NDX'; dji='^DJI'; cac='^FCHI'; dax='^GDAXI'; sx5e='^STOXX50E'; n225='^N225'; aapl='AAPL'; msft='MSFT'; nvda='NVDA'; amzn='AMZN'; googl='GOOGL'; tsla='TSLA'; meta='META'; mc='MC.PA'; tte='TTE.PA'; air='AIR.PA'; or='OR.PA'; bnp='BNP.PA'; san='SAN.PA'; rms='RMS.PA'; asml='ASML.AS'; cw8='CW8.PA'; cspx='CSPX.L'; cndx='CNDX.L'; c40='C40.PA'; vwce='VWCE.DE'; aeem='AEEM.PA'; ieag='IEGA.AS' }
 foreach($kv in @(@('ftse','^FTSE'),@('smi','^SSMI'),@('ibex','^IBEX'),@('mib','FTSEMIB.MI'),@('aex','^AEX'),@('hsi','^HSI'),@('sse','000001.SS'),@('kospi','^KS11'),@('sensex','^BSESN'),@('bvsp','^BVSP'),@('tsx','^GSPTSE'),@('asx','^AXJO'),@('rut','^RUT'),@('vix','^VIX'),@('bel20','^BFX'),@('sbf120','^SBF120'),@('spy','SPY'),@('qqq','QQQ'),@('voo','VOO'),@('vti','VTI'),@('gld','GLD'),@('iwda','IWDA.AS'),@('eimi','EIMI.L'),@('meud','MEUD.PA'),@('icln','ICLN'),@('ieac','IEAC.AS'),@('ese','ESE.PA'),@('panx','PANX.PA'))){ $yahoo[$kv[0]]=$kv[1] }
+# ETF par pays, ETF matières premières et crypto, cryptomonnaies (en euros), matières premières (contrats à terme en dollars)
+foreach($kv in @(@('bova11','BOVA11.SA'),@('ewz','EWZ'),@('kodex200','069500.KS'),@('ewy','EWY'),@('ewj','EWJ'),@('inda','INDA'),@('mchi','MCHI'),@('ewt','EWT'),@('ewa','EWA'),@('ewc','EWC'),@('ewu','EWU'),@('ewg','EWG'),@('ewl','EWL'),@('eww','EWW'),@('eza','EZA'),@('slv','SLV'),@('uso','USO'),@('ibit','IBIT'),
+  @('btc','BTC-EUR'),@('eth','ETH-EUR'),@('sol','SOL-EUR'),@('xrp','XRP-EUR'),@('bnb','BNB-EUR'),@('ada','ADA-EUR'),@('doge','DOGE-EUR'),
+  @('gold','GC=F'),@('silver','SI=F'),@('platinum','PL=F'),@('copper','HG=F'),@('wti','CL=F'),@('brent','BZ=F'),@('natgas','NG=F'),@('wheat','ZW=F'),@('corn','ZC=F'),@('coffee','KC=F'),@('cocoa','CC=F'),@('sugar','SB=F'))){ $yahoo[$kv[0]]=$kv[1] }
 # devises du G20 face à l'euro
 foreach($x in 'usd','jpy','gbp','chf','cad','aud','cny','inr','brl','hkd','krw','idr','mxn','rub','sar','zar','try','ars'){ $yahoo["eur$x"] = "EUR$($x.ToUpper())=X" }
 $bonds = [ordered]@{ oat10='FR10Y'; bund10='DE10Y'; btp10='IT10Y'; ust10='US10Y'; gilt10='GB10Y'; jgb10='JP10Y'
@@ -21,10 +25,11 @@ foreach ($k in $yahoo.Keys) {
   try {
     $r = Invoke-RestMethod -Uri ("https://query1.finance.yahoo.com/v8/finance/chart/" + [uri]::EscapeDataString($yahoo[$k]) + "?range=1d&interval=5m") -UserAgent $ua -TimeoutSec 20
     $res = $r.chart.result[0]; $m = $res.meta
-    $h = @($res.indicators.quote[0].close | Where-Object { $_ -ne $null } | ForEach-Object { [math]::Round([double]$_, 6) })
+    $div = if ($m.currency -eq 'USX' -or $m.currency -eq 'GBp') { 100.0 } else { 1.0 }   # cotés en cents ou en pence
+    $h = @($res.indicators.quote[0].close | Where-Object { $_ -ne $null } | ForEach-Object { [math]::Round([double]$_ / $div, 6) })
     if ($h.Count -gt 100) { $step = [math]::Ceiling($h.Count / 100); $h = @(for ($i = 0; $i -lt $h.Count; $i += $step) { $h[$i] }) }
-    $p = [double]$m.regularMarketPrice; $h += $p
-    $q[$k] = [ordered]@{ p = $p; prev = [double]$m.chartPreviousClose; t = [int64]$m.regularMarketTime; h = $h }
+    $p = [double]$m.regularMarketPrice / $div; $h += $p
+    $q[$k] = [ordered]@{ p = $p; prev = [double]$m.chartPreviousClose / $div; t = [int64]$m.regularMarketTime; h = $h }
   } catch { $errors += "$k : $($_.Exception.Message)" }
 }
 foreach ($k in $bonds.Keys) {
@@ -86,16 +91,31 @@ if ($sbUrl -and $sbKey -and (Test-Path $metaFile)) {
       } else { $cur = [string]$e.Value; if ($null -eq $r.p) { continue }; $px = [double]$r.p }
       $rate = if ($cur -ne 'pts' -and $fx.ContainsKey($cur)) { $fx[$cur] } else { 1.0 }   # « pts » : pas de conversion, comme sur le site
       $eur = $px / $rate
-      if ($eur -gt 0 -and -not [double]::IsInfinity($eur) -and -not [double]::IsNaN($eur)) { $rows.Add([ordered]@{ asset = $id; px_eur = [math]::Round($eur, 6); at = $now }) }
+      if ($eur -gt 0 -and -not [double]::IsInfinity($eur) -and -not [double]::IsNaN($eur)) { $rows.Add([ordered]@{ asset = $id; px_eur = [math]::Round($eur, 6); px = [math]::Round($px, 6); at = $now }) }
     }
     $h = @{ apikey = $sbKey; Prefer = 'resolution=merge-duplicates,return=minimal' }
     if ($sbKey -like 'eyJ*') { $h.Authorization = "Bearer $sbKey" }   # ancienne clé service_role
+    $withPx = $true
     for ($i = 0; $i -lt $rows.Count; $i += 500) {
       $chunk = $rows.GetRange($i, [math]::Min(500, $rows.Count - $i)).ToArray()
+      if (-not $withPx) { $chunk = @($chunk | ForEach-Object { [ordered]@{ asset = $_.asset; px_eur = $_.px_eur; at = $_.at } }) }
       $body = ConvertTo-Json -InputObject $chunk -Compress -Depth 3
-      Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/prices" -Headers $h -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30 | Out-Null
+      try { Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/prices" -Headers $h -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30 | Out-Null }
+      catch {
+        # la colonne px n'existe pas encore (stop-loss-serveur.sql pas encore lancé) : on renvoie sans elle
+        if ($withPx -and $_.Exception.Message -match '\(400\)') { $withPx = $false; $i -= 500; continue }
+        throw
+      }
     }
-    "OK : $($rows.Count) cours envoyés au serveur des concours"
+    "OK : $($rows.Count) cours envoyés au serveur des concours" + $(if (-not $withPx) { " (sans prix en devise : lance stop-loss-serveur.sql dans Supabase)" } else { "" })
+    # stop loss et take profit des concours, exécutés au cours officiel
+    if ($withPx) {
+      try {
+        $hr = @{ apikey = $sbKey }; if ($h.Authorization) { $hr.Authorization = $h.Authorization }
+        $n = Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/rpc/run_stops" -Headers $hr -ContentType 'application/json' -Body '{}' -TimeoutSec 60
+        "OK : stop loss / take profit exécutés dans les concours : $n"
+      } catch { "Stop loss des concours non exécutés : $($_.Exception.Message)" }
+    }
   } catch { "Cours non envoyés au serveur des concours : $($_.Exception.Message)" }
 } else { "Cours des concours non envoyés (secret SUPABASE_SERVICE_KEY absent)" }
 

@@ -86,7 +86,7 @@
     if(/termin/i.test(m)) return "Ce concours est terminé : on ne peut plus le rejoindre.";
     if(/members_pseudo_unique/.test(m)) return "Ce pseudo est déjà pris dans ce groupe. Choisis-en un autre.";
     if(/anonymous/i.test(m)) return "La connexion anonyme est désactivée dans Supabase (Authentication → Sign In / Providers → Allow anonymous sign-ins).";
-    if(/Inscriptions closes/i.test(m)) return "Les inscriptions à ce concours sont closes : on ne peut plus le rejoindre 24 h après son début.";
+    if(/Inscriptions closes/i.test(m)) return "Les inscriptions à ce concours sont closes.";
     if(/incoh/i.test(m)) return "Le serveur a refusé cet enregistrement. Ton portefeuille de concours a été rechargé tel qu'il est enregistré.";
     if(/row-level security|permission/i.test(m)) return "Action refusée : le concours n'est pas en cours.";
     if(/fetch|network|Chargement/i.test(m)) return "Impossible de joindre le serveur des concours. Vérifie ta connexion.";
@@ -96,8 +96,15 @@
   /* ---------- mes groupes ---------- */
   async function loadMine(){
     const rows=await api.myGroups();
+    const before=Object.fromEntries(groups.map(g=>[g.group.code,Math.max(0,...g.me.trades.map(t=>t.t||0))]));
     groups=rows.filter(r=>r.groups).map(r=>({group:r.groups,pseudo:r.pseudo,me:{cash:Number(r.cash),pos:r.pos||{},trades:r.trades||[]}}));
     for(const g of groups) lastLogged[g.group.code]=Math.max(0,...g.me.trades.map(t=>t.t||0));
+    // stop loss / take profit exécutés par le serveur pendant que le site était fermé ou sur un autre portefeuille
+    for(const g of groups){ const b=before[g.group.code]; if(b==null) continue;
+      for(const t of g.me.trades.filter(t=>t.auto&&t.t>b).reverse()){ const a=A[t.id]; if(!a) continue;
+        notify(t.auto,t.id,`${t.auto==="sl"?"Stop loss déclenché":"Take profit atteint"} (concours « ${g.group.name} ») : ${t.side==="sell"?"vente":"rachat"} de ${t.qty} × ${a.name} à ${fmt(Number(t.px),2)} ${CUR_SYM[a.cur]||""}.`); }
+    }
+    if(typeof updateBell==="function") updateBell();
     if(groups.length) lsSet(LS_JOINED,true);
     const saved=lsGet(LS_ACTIVE), cur=ACTIVE&&ACTIVE.group.code;
     const want=cur||saved;
@@ -106,8 +113,16 @@
   }
   async function fetchMembers(code){
     try{ members[code]=await api.members(code); if(view==="portefeuille") refreshView(); }catch(e){ return; }
+    // mon portefeuille a changé sur le serveur (stop loss / take profit exécuté par le serveur) : on recharge
+    const mine=members[code].find(r=>r.player_id===api.uid), g=groups.find(x=>x.group.code===code);
+    if(mine&&g&&!saveT&&!flushing&&Math.abs(Number(mine.cash)-g.me.cash)>0.01&&Date.parse(mine.updated_at)>(lastValSave[code]||0)+1000){
+      try{ await loadMine(); render(true); }catch(e){}
+    }
     snapshotDay(code);
   }
+  // resynchronise tous mes concours régulièrement (si un ordre automatique a été exécuté sur un autre portefeuille)
+  let lastResync=Date.now();
+  async function resync(){ if(!api||saveT||flushing||Date.now()-lastResync<3e5) return; lastResync=Date.now(); try{ await loadMine(); refreshView(); }catch(e){} }
 
   /* ---------- classement quotidien sauvegardé ----------
      Quand un participant regarde le concours, le classement du jour est enregistré dans la base
@@ -161,7 +176,9 @@
 
   /* ---------- enregistrer mon portefeuille de concours ---------- */
   function save(){ const E=ACTIVE; if(!E||!api) return; clearTimeout(saveT); saveT=setTimeout(()=>{ saveT=null; flush(E); },500); }
-  async function flush(E){
+  let flushing=0;
+  async function flush(E){ flushing++; try{ await flushNow(E); } finally { flushing--; } }
+  async function flushNow(E){
     const code=E.group.code, me=E.me, prev=ACTIVE; ACTIVE=E; const value=pfTotal(); ACTIVE=prev;
     const fresh=me.trades.filter(t=>t.t>(lastLogged[code]||0));
     // ordres envoyés du plus ancien au plus récent (le serveur les rejoue dans cet ordre)
@@ -335,9 +352,9 @@
   });
 
   // classement : mis à jour toutes les minutes pendant qu'on regarde un concours
-  pollT=setInterval(()=>{ if(ACTIVE&&api){ fetchMembers(ACTIVE.group.code); onPrices(); saveValue(); } },60000);
+  pollT=setInterval(()=>{ if(ACTIVE&&api){ fetchMembers(ACTIVE.group.code); onPrices(); saveValue(); } if(api&&groups.length) resync(); },60000);
 
-  window.CONTEST={panelHTML,tradeSwitch,blocked,save,onPrices,setActive};
+  window.CONTEST={panelHTML,tradeSwitch,blocked,save,onPrices,setActive,list:()=>groups};
   if(configured()&&(lsGet(LS_JOINED)||lsGet(LS_ACTIVE))) init().catch(()=>{});
   if(view==="portefeuille"||view==="detail") render(true);   // la page a été dessinée avant le chargement de ce fichier
 })();
