@@ -17,16 +17,16 @@ concurrency:
 jobs:
   update:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
+    env:
+      # cours de référence et cours en direct : envoyés au serveur Supabase avec la clé secrète
+      SUPABASE_URL: https://kuzqmyvswslbucuwjczx.supabase.co
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Relever les cours et les titres
         shell: powershell
-        env:
-          # cours de référence des concours : envoyés au serveur Supabase avec la clé secrète
-          SUPABASE_URL: https://kuzqmyvswslbucuwjczx.supabase.co
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: ./update.ps1 -OutDir .
 
       - name: Publier les nouveaux fichiers
@@ -35,7 +35,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           git add quotes.json news.json
+          if [ -f history.json ]; then git add history.json; fi
           if git diff --cached --quiet; then echo "Rien de nouveau"; exit 0; fi
           git commit -m "Mise à jour des cours"
           git pull --rebase
           git push
+
+      # en semaine, jusqu'au relevé suivant : cours en direct toutes les 2 minutes (lus par le site chaque minute)
+      - name: Cours en direct
+        if: github.event_name == 'schedule' && github.event.schedule == '*/15 6-21 * * 1-5'
+        shell: powershell
+        run: ./update.ps1 -OutDir . -LiveMinutes 13

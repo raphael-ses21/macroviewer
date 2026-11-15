@@ -1932,3 +1932,14 @@ tmpv.ns;TMPV.NS
 ben.pa;BEN.PA
 bim.pa;BIM.PA
 mmt.pa;MMT.PA
+rlo.jo;RLO.JO
+bmi;BMI
+7936.t;7936.T
+wse;WSE
+cbrs;CBRS
+stn.to;STN.TO
+spce;SPCE
+vir;VIR
+mod;MOD
+lfto;LFTO
+htfl;HTFL

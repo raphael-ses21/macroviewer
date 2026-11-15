@@ -1,6 +1,6 @@
 ﻿# MacroViewer : relève les derniers cours réels (Yahoo Finance, CNBC) et les titres de presse (flux RSS)
 # puis écrit quotes.json et news.json à la racine du site. Lancé par GitHub Actions (.github/workflows/update.yml).
-param([string]$OutDir = (Split-Path $PSScriptRoot -Parent))
+param([string]$OutDir = (Split-Path $PSScriptRoot -Parent), [int]$LiveMinutes = 0)
 $ErrorActionPreference = 'Stop'
 $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
 $utf8 = New-Object Text.UTF8Encoding($false)
@@ -12,6 +12,8 @@ foreach($kv in @(@('ftse','^FTSE'),@('smi','^SSMI'),@('ibex','^IBEX'),@('mib','F
 foreach($kv in @(@('bova11','BOVA11.SA'),@('ewz','EWZ'),@('kodex200','069500.KS'),@('ewy','EWY'),@('ewj','EWJ'),@('inda','INDA'),@('mchi','MCHI'),@('ewt','EWT'),@('ewa','EWA'),@('ewc','EWC'),@('ewu','EWU'),@('ewg','EWG'),@('ewl','EWL'),@('eww','EWW'),@('eza','EZA'),@('slv','SLV'),@('uso','USO'),@('ibit','IBIT'),
   @('btc','BTC-EUR'),@('eth','ETH-EUR'),@('sol','SOL-EUR'),@('xrp','XRP-EUR'),@('bnb','BNB-EUR'),@('ada','ADA-EUR'),@('doge','DOGE-EUR'),
   @('gold','GC=F'),@('silver','SI=F'),@('platinum','PL=F'),@('copper','HG=F'),@('wti','CL=F'),@('brent','BZ=F'),@('natgas','NG=F'),@('wheat','ZW=F'),@('corn','ZC=F'),@('coffee','KC=F'),@('cocoa','CC=F'),@('sugar','SB=F'))){ $yahoo[$kv[0]]=$kv[1] }
+# ETF des grands indices
+foreach($kv in @(@('tiger200','102110.KS'),@('kodexkq150','229200.KS'),@('smal11','SMAL11.SA'),@('exs1','EXS1.DE'),@('exw1','EXW1.DE'),@('isf','ISF.L'),@('cssmi','CSSMI.SW'),@('lyxib','LYXIB.MC'),@('etfmib','ETFMIB.MI'),@('iaex','IAEX.AS'),@('dia','DIA'),@('iwm','IWM'),@('nk225','1321.T'),@('tracker','2800.HK'),@('sse50etf','510050.SS'),@('niftybees','NIFTYBEES.NS'),@('stw','STW.AX'),@('xiu','XIU.TO'))){ $yahoo[$kv[0]]=$kv[1] }
 # devises du G20 face à l'euro
 foreach($x in 'usd','jpy','gbp','chf','cad','aud','cny','inr','brl','hkd','krw','idr','mxn','rub','sar','zar','try','ars'){ $yahoo["eur$x"] = "EUR$($x.ToUpper())=X" }
 $bonds = [ordered]@{ oat10='FR10Y'; bund10='DE10Y'; btp10='IT10Y'; ust10='US10Y'; gilt10='GB10Y'; jgb10='JP10Y'
@@ -20,12 +22,112 @@ $bonds = [ordered]@{ oat10='FR10Y'; bund10='DE10Y'; btp10='IT10Y'; ust10='US10Y'
 # courbes des taux de 3 mois à 30 ans (clés r_pays_durée)
 foreach($c in 'us','fr','de','it','gb','jp'){ foreach($t in '3m','6m','1y','2y','5y','10y','30y'){ $bonds["r_${c}_$t"] = ($c.ToUpper() + $t.ToUpper()) } }
 
+# ---------- cours de référence des concours (Supabase) ----------
+# Le serveur des concours recalcule chaque ordre avec ces prix : un joueur ne peut pas annoncer un faux cours.
+# Il faut le secret SUPABASE_SERVICE_KEY dans GitHub (Settings → Secrets and variables → Actions).
+$sbUrl = "$env:SUPABASE_URL".Trim().TrimEnd('/')
+# on extrait la clé de ce qui a été collé (elle peut être entourée d'espaces, de retours à la ligne ou d'un libellé)
+$rawKey = "$env:SUPABASE_SERVICE_KEY"; $km = [regex]::Match($rawKey, 'sb_secret_[A-Za-z0-9_\-]+|eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+')
+$sbKey = if ($km.Success) { $km.Value } else { $rawKey -replace '\s', '' }
+if ($sbKey) { "Clé des concours : " + $(if ($sbKey -like 'sb_secret_*') { 'clé secrète sb_secret' } elseif ($sbKey -like 'eyJ*') { 'ancienne clé service_role' } elseif ($sbKey -like 'sb_publishable_*') { 'ATTENTION : clé publique (publishable), il faut la clé SECRÈTE' } else { "format inconnu ($($sbKey.Length) caractères)" }) }
+$metaFile = Join-Path $PSScriptRoot 'assets_meta.json'
+function Send-Prices($q) {
+  if ($sbUrl -and $sbKey -and (Test-Path $metaFile)) {
+    try {
+      $meta = [IO.File]::ReadAllText($metaFile, [Text.Encoding]::UTF8) | ConvertFrom-Json
+      $fx = @{ EUR = 1.0 }
+      foreach ($k in @($q.PSBase.Keys)) { if ($k -match '^eur([a-z]{3})$' -and $q[$k].p) { $fx[$Matches[1].ToUpper()] = [double]$q[$k].p } }
+      $coupon = [double]$meta.coupon; $now = [DateTimeOffset]::UtcNow.ToString('o'); $rows = New-Object System.Collections.Generic.List[object]
+      foreach ($e in $meta.a.PSObject.Properties) {
+        $id = $e.Name; if (-not $q.Contains($id)) { continue }; $r = $q[$id]
+        if ($e.Value -is [array]) {     # obligation : prix d'une obligation à coupon 3 %, calculé à partir du taux (comme sur le site)
+          $cur = [string]$e.Value[0]; $mat = [int]$e.Value[1]; if ($null -eq $r.y) { continue }
+          $y = [double]$r.y / 100; $px = 0.0; for ($t = 1; $t -le $mat; $t++) { $px += $coupon / [math]::Pow(1 + $y, $t) }; $px += 100 / [math]::Pow(1 + $y, $mat)
+        } else { $cur = [string]$e.Value; if ($null -eq $r.p) { continue }; $px = [double]$r.p }
+        $rate = if ($cur -ne 'pts' -and $fx.ContainsKey($cur)) { $fx[$cur] } else { 1.0 }   # « pts » : pas de conversion, comme sur le site
+        $eur = $px / $rate
+        if ($eur -gt 0 -and -not [double]::IsInfinity($eur) -and -not [double]::IsNaN($eur)) { $rows.Add([ordered]@{ asset = $id; px_eur = [math]::Round($eur, 6); px = [math]::Round($px, 6); at = $now }) }
+      }
+      $h = @{ apikey = $sbKey; Prefer = 'resolution=merge-duplicates,return=minimal' }
+      if ($sbKey -like 'eyJ*') { $h.Authorization = "Bearer $sbKey" }   # ancienne clé service_role
+      $withPx = $true
+      for ($i = 0; $i -lt $rows.Count; $i += 500) {
+        $chunk = $rows.GetRange($i, [math]::Min(500, $rows.Count - $i)).ToArray()
+        if (-not $withPx) { $chunk = @($chunk | ForEach-Object { [ordered]@{ asset = $_.asset; px_eur = $_.px_eur; at = $_.at } }) }
+        $body = ConvertTo-Json -InputObject $chunk -Compress -Depth 3
+        try { Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/prices" -Headers $h -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30 | Out-Null }
+        catch {
+          # la colonne px n'existe pas encore (stop-loss-serveur.sql pas encore lancé) : on renvoie sans elle
+          if ($withPx -and $_.Exception.Message -match '\(400\)') { $withPx = $false; $i -= 500; continue }
+          throw
+        }
+      }
+      "OK : $($rows.Count) cours envoyés au serveur des concours" + $(if (-not $withPx) { " (sans prix en devise : lance stop-loss-serveur.sql dans Supabase)" } else { "" })
+      # stop loss et take profit des concours, exécutés au cours officiel
+      if ($withPx) {
+        try {
+          $hr = @{ apikey = $sbKey }; if ($h.Authorization) { $hr.Authorization = $h.Authorization }
+          $n = Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/rpc/run_stops" -Headers $hr -ContentType 'application/json' -Body '{}' -TimeoutSec 60
+          "OK : stop loss / take profit exécutés dans les concours : $n"
+        } catch { "Stop loss des concours non exécutés : $($_.Exception.Message)" }
+      }
+    } catch { "Cours non envoyés au serveur des concours : $($_.Exception.Message)" }
+  } else { "Cours des concours non envoyés (secret SUPABASE_SERVICE_KEY absent)" }
+}
+
+# ---------- cours en direct ----------
+# Lancé avec -LiveMinutes : relève tous les cours toutes les 2 minutes et les envoie à Supabase
+# (table live_quotes, lue chaque minute par le site), puis exécute les stop loss des concours.
+if ($LiveMinutes -gt 0) {
+  if (-not ($sbUrl -and $sbKey)) { "Cours en direct non envoyés (secret SUPABASE_SERVICE_KEY absent)"; return }
+  $pairs = New-Object System.Collections.Generic.List[object]
+  foreach ($k in $yahoo.Keys) { $pairs.Add(@($k, $yahoo[$k])) }
+  $uniFile = Join-Path $PSScriptRoot 'universe_ids.txt'
+  if (Test-Path $uniFile) { foreach ($l in Get-Content $uniFile) { if ($l -match ';') { $pp = $l.Split(';'); $pairs.Add(@($pp[0], $pp[1])) } } }
+  $byY = @{}; foreach ($pp in $pairs) { $byY[$pp[1]] = $pp[0] }
+  $hl = @{ apikey = $sbKey; Prefer = 'resolution=merge-duplicates,return=minimal' }; if ($sbKey -like 'eyJ*') { $hl.Authorization = "Bearer $sbKey" }
+  $deadline = (Get-Date).AddMinutes($LiveMinutes); $crumb = $null; $round = 0
+  while ((Get-Date) -lt $deadline) {
+    $start = Get-Date; $round++
+    try {
+      if (-not $crumb) {
+        $ws = New-Object Microsoft.PowerShell.Commands.WebRequestSession
+        try { Invoke-WebRequest -Uri 'https://fc.yahoo.com' -WebSession $ws -UserAgent $ua -UseBasicParsing -TimeoutSec 15 | Out-Null } catch {}
+        $crumb = (Invoke-WebRequest -Uri 'https://query1.finance.yahoo.com/v1/test/getcrumb' -WebSession $ws -UserAgent $ua -UseBasicParsing).Content
+      }
+      $lq = @{}
+      for ($i = 0; $i -lt $pairs.Count; $i += 50) {
+        $batch = ($pairs.GetRange($i, [math]::Min(50, $pairs.Count - $i)) | ForEach-Object { $_[1] }) -join ','
+        try {
+          $r = Invoke-RestMethod -Uri ("https://query1.finance.yahoo.com/v7/finance/quote?symbols=" + [uri]::EscapeDataString($batch) + "&crumb=" + [uri]::EscapeDataString($crumb)) -WebSession $ws -UserAgent $ua -TimeoutSec 30
+          foreach ($x in $r.quoteResponse.result) {
+            $id = $byY[$x.symbol]; if (-not $id -or $null -eq $x.regularMarketPrice) { continue }
+            $div = if ($x.currency -in 'GBp','GBX','ZAc','ILA','USX') { 100.0 } else { 1.0 }
+            $lq[$id] = [ordered]@{ p = [double]$x.regularMarketPrice / $div; prev = [double]$x.regularMarketPreviousClose / $div; t = [int64]$x.regularMarketTime }
+          }
+        } catch {}
+        Start-Sleep -Milliseconds 200
+      }
+      if ($lq.Count -lt 30) { $crumb = $null; throw "seulement $($lq.Count) cours" }
+      $data = [ordered]@{}; foreach ($k in @($lq.PSBase.Keys)) { $data[$k] = @([math]::Round($lq[$k].p, 6), [math]::Round($lq[$k].prev, 6), $lq[$k].t) }
+      $body = ConvertTo-Json -InputObject @([ordered]@{ id = 1; data = $data; at = [DateTimeOffset]::UtcNow.ToString('o') }) -Depth 5 -Compress
+      Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/live_quotes" -Headers $hl -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30 | Out-Null
+      "Direct n°$($round) à $((Get-Date).ToUniversalTime().ToString('HH:mm')) UTC : $($lq.Count) cours"
+      Send-Prices $lq
+    } catch { "Direct n°$($round) : $($_.Exception.Message)" }
+    $wait = 120 - ((Get-Date) - $start).TotalSeconds
+    if ((Get-Date).AddSeconds([math]::Max(0, $wait)) -ge $deadline) { break }
+    if ($wait -gt 0) { Start-Sleep -Seconds ([int]$wait) }
+  }
+  return
+}
+
 $q = [ordered]@{}; $errors = @()
 foreach ($k in $yahoo.Keys) {
   try {
     $r = Invoke-RestMethod -Uri ("https://query1.finance.yahoo.com/v8/finance/chart/" + [uri]::EscapeDataString($yahoo[$k]) + "?range=1d&interval=5m") -UserAgent $ua -TimeoutSec 20
     $res = $r.chart.result[0]; $m = $res.meta
-    $div = if ($m.currency -eq 'USX' -or $m.currency -eq 'GBp') { 100.0 } else { 1.0 }   # cotés en cents ou en pence
+    $div = if ($m.currency -in 'GBp','GBX','ZAc','ILA','USX') { 100.0 } else { 1.0 }   # cotés en cents ou en pence
     $h = @($res.indicators.quote[0].close | Where-Object { $_ -ne $null } | ForEach-Object { [math]::Round([double]$_ / $div, 6) })
     if ($h.Count -gt 100) { $step = [math]::Ceiling($h.Count / 100); $h = @(for ($i = 0; $i -lt $h.Count; $i += $step) { $h[$i] }) }
     $p = [double]$m.regularMarketPrice / $div; $h += $p
@@ -56,7 +158,7 @@ if (Test-Path $uniFile) {
       $r = Invoke-RestMethod -Uri ("https://query1.finance.yahoo.com/v7/finance/quote?symbols=" + [uri]::EscapeDataString($batch) + "&crumb=" + [uri]::EscapeDataString($crumb)) -WebSession $ws -UserAgent $ua -TimeoutSec 30
       foreach ($x in $r.quoteResponse.result) {
         $id = $byY[$x.symbol]
-        $div = if ($x.currency -eq 'GBp') { 100 } else { 1 }   # Londres cote en pence
+        $div = if ($x.currency -in 'GBp','GBX','ZAc','ILA') { 100 } else { 1 }   # Londres, Johannesburg, Tel-Aviv cotent en centimes
         if ($id -and -not $q.Contains($id) -and $null -ne $x.regularMarketPrice) { $q[$id] = [ordered]@{ p = [double]$x.regularMarketPrice/$div; prev = [double]$x.regularMarketPreviousClose/$div; t = [int64]$x.regularMarketTime } }
       }
       Start-Sleep -Milliseconds 300
@@ -68,56 +170,45 @@ $asOf = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 [IO.File]::WriteAllText((Join-Path $OutDir 'quotes.json'), ([ordered]@{ asOf = $asOf; q = $q } | ConvertTo-Json -Depth 6 -Compress), $utf8)
 "OK : $($q.Count) cours" + $(if ($errors) { " (manquants : $($errors.Count))" } else { "" })
 
-# ---------- cours de référence des concours (Supabase) ----------
-# Le serveur des concours recalcule chaque ordre avec ces prix : un joueur ne peut pas annoncer un faux cours.
-# Il faut le secret SUPABASE_SERVICE_KEY dans GitHub (Settings → Secrets and variables → Actions).
-$sbUrl = "$env:SUPABASE_URL".Trim().TrimEnd('/')
-# on extrait la clé de ce qui a été collé (elle peut être entourée d'espaces, de retours à la ligne ou d'un libellé)
-$rawKey = "$env:SUPABASE_SERVICE_KEY"; $km = [regex]::Match($rawKey, 'sb_secret_[A-Za-z0-9_\-]+|eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+')
-$sbKey = if ($km.Success) { $km.Value } else { $rawKey -replace '\s', '' }
-if ($sbKey) { "Clé des concours : " + $(if ($sbKey -like 'sb_secret_*') { 'clé secrète sb_secret' } elseif ($sbKey -like 'eyJ*') { 'ancienne clé service_role' } elseif ($sbKey -like 'sb_publishable_*') { 'ATTENTION : clé publique (publishable), il faut la clé SECRÈTE' } else { "format inconnu ($($sbKey.Length) caractères)" }) }
-$metaFile = Join-Path $PSScriptRoot 'assets_meta.json'
-if ($sbUrl -and $sbKey -and (Test-Path $metaFile)) {
+# ---------- historique quotidien des 3 derniers mois (graphiques 1 mois / 1 an du site) ----------
+# refait au plus toutes les 6 heures : cours de clôture de chaque titre, 20 titres par requête
+$histFile = Join-Path $OutDir 'history.json'; $needHist = $true
+if (Test-Path $histFile) {
+  $head = [IO.File]::ReadAllText($histFile).Substring(0, 60)
+  if ($head -match '"asOf":(\d+)' -and ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [int64]$Matches[1]) -lt 6 * 3600) { $needHist = $false }
+}
+if ($needHist) {
   try {
-    $meta = [IO.File]::ReadAllText($metaFile, [Text.Encoding]::UTF8) | ConvertFrom-Json
-    $fx = @{ EUR = 1.0 }
-    foreach ($k in @($q.PSBase.Keys)) { if ($k -match '^eur([a-z]{3})$' -and $q[$k].p) { $fx[$Matches[1].ToUpper()] = [double]$q[$k].p } }
-    $coupon = [double]$meta.coupon; $now = [DateTimeOffset]::UtcNow.ToString('o'); $rows = New-Object System.Collections.Generic.List[object]
-    foreach ($e in $meta.a.PSObject.Properties) {
-      $id = $e.Name; if (-not $q.Contains($id)) { continue }; $r = $q[$id]
-      if ($e.Value -is [array]) {     # obligation : prix d'une obligation à coupon 3 %, calculé à partir du taux (comme sur le site)
-        $cur = [string]$e.Value[0]; $mat = [int]$e.Value[1]; if ($null -eq $r.y) { continue }
-        $y = [double]$r.y / 100; $px = 0.0; for ($t = 1; $t -le $mat; $t++) { $px += $coupon / [math]::Pow(1 + $y, $t) }; $px += 100 / [math]::Pow(1 + $y, $mat)
-      } else { $cur = [string]$e.Value; if ($null -eq $r.p) { continue }; $px = [double]$r.p }
-      $rate = if ($cur -ne 'pts' -and $fx.ContainsKey($cur)) { $fx[$cur] } else { 1.0 }   # « pts » : pas de conversion, comme sur le site
-      $eur = $px / $rate
-      if ($eur -gt 0 -and -not [double]::IsInfinity($eur) -and -not [double]::IsNaN($eur)) { $rows.Add([ordered]@{ asset = $id; px_eur = [math]::Round($eur, 6); px = [math]::Round($px, 6); at = $now }) }
-    }
-    $h = @{ apikey = $sbKey; Prefer = 'resolution=merge-duplicates,return=minimal' }
-    if ($sbKey -like 'eyJ*') { $h.Authorization = "Bearer $sbKey" }   # ancienne clé service_role
-    $withPx = $true
-    for ($i = 0; $i -lt $rows.Count; $i += 500) {
-      $chunk = $rows.GetRange($i, [math]::Min(500, $rows.Count - $i)).ToArray()
-      if (-not $withPx) { $chunk = @($chunk | ForEach-Object { [ordered]@{ asset = $_.asset; px_eur = $_.px_eur; at = $_.at } }) }
-      $body = ConvertTo-Json -InputObject $chunk -Compress -Depth 3
-      try { Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/prices" -Headers $h -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30 | Out-Null }
-      catch {
-        # la colonne px n'existe pas encore (stop-loss-serveur.sql pas encore lancé) : on renvoie sans elle
-        if ($withPx -and $_.Exception.Message -match '\(400\)') { $withPx = $false; $i -= 500; continue }
-        throw
-      }
-    }
-    "OK : $($rows.Count) cours envoyés au serveur des concours" + $(if (-not $withPx) { " (sans prix en devise : lance stop-loss-serveur.sql dans Supabase)" } else { "" })
-    # stop loss et take profit des concours, exécutés au cours officiel
-    if ($withPx) {
+    $hp = New-Object System.Collections.Generic.List[object]
+    foreach ($k in $yahoo.Keys) { $hp.Add(@($k, $yahoo[$k])) }
+    if (Test-Path $uniFile) { foreach ($l in Get-Content $uniFile) { if ($l -match ';') { $pp = $l.Split(';'); $hp.Add(@($pp[0], $pp[1])) } } }
+    $hy = @{}; foreach ($pp in $hp) { $hy[$pp[1]] = $pp[0] }
+    $hd = [ordered]@{}
+    for ($i = 0; $i -lt $hp.Count; $i += 20) {
+      $batch = ($hp.GetRange($i, [math]::Min(20, $hp.Count - $i)) | ForEach-Object { $_[1] }) -join ','
       try {
-        $hr = @{ apikey = $sbKey }; if ($h.Authorization) { $hr.Authorization = $h.Authorization }
-        $n = Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/rpc/run_stops" -Headers $hr -ContentType 'application/json' -Body '{}' -TimeoutSec 60
-        "OK : stop loss / take profit exécutés dans les concours : $n"
-      } catch { "Stop loss des concours non exécutés : $($_.Exception.Message)" }
+        $r = Invoke-RestMethod -Uri ("https://query1.finance.yahoo.com/v8/finance/spark?symbols=" + [uri]::EscapeDataString($batch) + "&range=3mo&interval=1d") -UserAgent $ua -TimeoutSec 30
+        foreach ($n in $r.PSObject.Properties.Name) {
+          $id = $hy[$n]; $x = $r.$n; if (-not $id -or -not $x.timestamp) { continue }
+          $ts = @($x.timestamp); $cl = @($x.close); if ($ts.Count -lt 2) { continue }
+          $lastc = ($cl | Where-Object { $_ -ne $null } | Select-Object -Last 1)
+          $div = if ($q.Contains($id) -and $q[$id].p -gt 0 -and $lastc / $q[$id].p -gt 50) { 100.0 } else { 1.0 }   # cotés en pence ou en cents
+          $arr = New-Object System.Collections.Generic.List[object]
+          for ($j = 0; $j -lt $ts.Count; $j++) { if ($null -ne $cl[$j]) { $arr.Add([int64]([int64]$ts[$j] / 60)); $arr.Add([math]::Round([double]$cl[$j] / $div, 6)) } }
+          if ($arr.Count -ge 4) { $hd[$id] = $arr.ToArray() }
+        }
+      } catch {}
+      Start-Sleep -Milliseconds 250
     }
-  } catch { "Cours non envoyés au serveur des concours : $($_.Exception.Message)" }
-} else { "Cours des concours non envoyés (secret SUPABASE_SERVICE_KEY absent)" }
+    if ($hd.Count -gt 100) {
+      [IO.File]::WriteAllText($histFile, ([ordered]@{ asOf = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); d = $hd } | ConvertTo-Json -Depth 4 -Compress), $utf8)
+      "OK : historique de $($hd.Count) titres"
+    } else { "Historique non mis à jour (seulement $($hd.Count) titres)" }
+  } catch { "Historique non mis à jour : $($_.Exception.Message)" }
+}
+
+# ---------- cours de référence des concours (Supabase) ----------
+Send-Prices $q
 
 # ---------- titres de presse ----------
 $feeds = @(
