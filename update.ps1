@@ -93,7 +93,15 @@ function Send-Prices($q) {
 # Lancé avec -LiveMinutes : relève tous les cours toutes les $LiveEvery secondes (5 minutes par défaut) et les envoie à Supabase
 # (table live_quotes, lue chaque minute par le site), puis exécute les stop loss des concours.
 if ($LiveMinutes -gt 0) {
-  if (-not ($sbUrl -and $sbKey)) { "Cours en direct non envoyés (secret SUPABASE_SERVICE_KEY absent)"; return }
+  # les cours sont publiés dans live.json sur la branche « live » du dépôt (lue chaque minute par le site) :
+  # cela marche sans clé ; si la clé secrète est bonne, ils vont aussi dans Supabase (stop loss côté serveur)
+  $pushGit = [bool]$env:GITHUB_ACTIONS -and [bool](Get-Command git -ErrorAction SilentlyContinue)
+  if (-not ($sbUrl -and $sbKey)) { "Supabase non utilisé (secret SUPABASE_SERVICE_KEY absent) : cours publiés seulement sur GitHub" }
+  if ($pushGit) {
+    $env:GIT_AUTHOR_NAME = $env:GIT_COMMITTER_NAME = "github-actions[bot]"
+    $env:GIT_AUTHOR_EMAIL = $env:GIT_COMMITTER_EMAIL = "41898283+github-actions[bot]@users.noreply.github.com"
+  }
+  $liveFile = Join-Path $(if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { $env:TEMP }) 'live.json'
   $pairs = New-Object System.Collections.Generic.List[object]
   foreach ($k in $yahoo.Keys) { $pairs.Add(@($k, $yahoo[$k])) }
   $uniFile = Join-Path $PSScriptRoot 'universe_ids.txt'
@@ -124,10 +132,34 @@ if ($LiveMinutes -gt 0) {
       }
       if ($lq.Count -lt 30) { $crumb = $null; throw "seulement $($lq.Count) cours" }
       $data = [ordered]@{}; foreach ($k in @($lq.PSBase.Keys)) { $data[$k] = @([math]::Round($lq[$k].p, 6), [math]::Round($lq[$k].prev, 6), $lq[$k].t) }
-      $body = ConvertTo-Json -InputObject @([ordered]@{ id = 1; data = $data; at = [DateTimeOffset]::UtcNow.ToString('o') }) -Depth 5 -Compress
-      Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/live_quotes" -Headers $hl -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30 | Out-Null
+      $nowIso = [DateTimeOffset]::UtcNow.ToString('o')
       "Direct n°$($round) à $((Get-Date).ToUniversalTime().ToString('HH:mm')) UTC : $($lq.Count) cours"
-      Send-Prices $lq
+      # 1) GitHub : live.json sur la branche « live » (un seul commit, remplacé à chaque relevé)
+      $json = ConvertTo-Json -InputObject ([ordered]@{ at = $nowIso; data = $data }) -Depth 5 -Compress
+      [IO.File]::WriteAllText($liveFile, $json, (New-Object Text.UTF8Encoding $false))
+      if ($pushGit) {
+        $eap = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        try {
+          $blob = git hash-object -w $liveFile
+          $env:GIT_INDEX_FILE = Join-Path (Split-Path $liveFile) 'live.index'
+          if (Test-Path $env:GIT_INDEX_FILE) { Remove-Item $env:GIT_INDEX_FILE }
+          git update-index --add --cacheinfo "100644,$blob,live.json"
+          $tree = git write-tree
+          Remove-Item Env:GIT_INDEX_FILE
+          $commit = git commit-tree $tree -m "Cours en direct"
+          git push -f -q origin "$($commit):refs/heads/live"
+          if ($LASTEXITCODE -eq 0) { "  publié sur GitHub (branche live)" } else { "  envoi GitHub refusé (code $LASTEXITCODE)" }
+        } catch { "  envoi GitHub impossible : $($_.Exception.Message)" } finally { Remove-Item Env:GIT_INDEX_FILE -ErrorAction SilentlyContinue; $ErrorActionPreference = $eap }
+      }
+      # 2) Supabase (si la clé secrète est bonne)
+      if ($sbUrl -and $sbKey) {
+        try {
+          $body = ConvertTo-Json -InputObject @([ordered]@{ id = 1; data = $data; at = $nowIso }) -Depth 5 -Compress
+          Invoke-RestMethod -Method Post -Uri "$sbUrl/rest/v1/live_quotes" -Headers $hl -ContentType 'application/json; charset=utf-8' -Body ([Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 30 | Out-Null
+          "  envoyé à Supabase"
+        } catch { "  Supabase refuse les cours : $($_.Exception.Message) (vérifie la clé secrète SUPABASE_SERVICE_KEY)" }
+        Send-Prices $lq
+      }
     } catch { "Direct n°$($round) : $($_.Exception.Message)" }
     $wait = $LiveEvery - ((Get-Date) - $start).TotalSeconds
     if ((Get-Date).AddSeconds([math]::Max(0, $wait)) -ge $deadline) { break }

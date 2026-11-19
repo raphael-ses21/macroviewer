@@ -5831,26 +5831,33 @@ async function pullSiteData(){
 }
 
 /* ---------- Cours en direct ----------
-   Toutes les 2 minutes, GitHub écrit les derniers cours dans la base Supabase (table live_quotes) ;
-   le site les lit chaque minute, sans attendre la publication de quotes.json. */
+   Toutes les 5 minutes, GitHub relève les derniers cours et les publie dans live.json (branche « live » du dépôt)
+   et, si possible, dans la base Supabase (table live_quotes). Le site lit les deux chaque minute et garde le plus récent,
+   sans attendre la publication de quotes.json. */
+const LIVE_GH="https://raw.githubusercontent.com/raphael-ses21/macroviewer/live/live.json";
 let liveAt=0;
+function applyLive(data,atIso){
+  const at=Date.parse(atIso); if(!data||!(at>liveAt)) return; liveAt=at;
+  let n=0;
+  for(const [id,v] of Object.entries(data)){
+    const P=PX[id], a=A[id]; if(!P||!a||a.type==="obligation"||!Array.isArray(v)) continue;
+    const [p,prev,t]=v; if(!(p>0)||!(t>P.t)) continue;
+    if(/^eur[a-z]{3}$/.test(id)) FX[id.slice(3).toUpperCase()]=p;
+    if(prev>0&&t-P.t>12*3600) { P.open=prev; P.hist=[prev]; }   // nouvelle séance
+    P.p=p; P.t=t; if(Array.isArray(P.hist)){ P.hist.push(p); if(P.hist.length>300) P.hist.shift(); }
+    n++;
+  }
+  if(n){ QUOTES.asOf=Math.max(QUOTES.asOf,Math.floor(at/1000)); checkAlerts(); if(window.CONTEST) CONTEST.onPrices(); updateLive(); const ck=$("#clock"); if(ck) ck.textContent=asOfTxt(); }
+}
 async function pullLive(){
-  const C=window.MV_CONCOURS; if(!C||!C.url||!C.key||C.mock||document.hidden) return;
-  try{
-    const r=await fetch(C.url+"/rest/v1/live_quotes?select=data,at&id=eq.1",{headers:{apikey:C.key},cache:"no-store"});
-    if(!r.ok) return; const row=(await r.json())[0]; if(!row||!row.data) return;
-    const at=Date.parse(row.at); if(!(at>liveAt)) return; liveAt=at;
-    let n=0;
-    for(const [id,v] of Object.entries(row.data)){
-      const P=PX[id], a=A[id]; if(!P||!a||a.type==="obligation"||!Array.isArray(v)) continue;
-      const [p,prev,t]=v; if(!(p>0)||!(t>P.t)) continue;
-      if(/^eur[a-z]{3}$/.test(id)) FX[id.slice(3).toUpperCase()]=p;
-      if(prev>0&&t-P.t>12*3600) { P.open=prev; P.hist=[prev]; }   // nouvelle séance
-      P.p=p; P.t=t; if(Array.isArray(P.hist)){ P.hist.push(p); if(P.hist.length>300) P.hist.shift(); }
-      n++;
-    }
-    if(n){ QUOTES.asOf=Math.max(QUOTES.asOf,Math.floor(at/1000)); checkAlerts(); if(window.CONTEST) CONTEST.onPrices(); updateLive(); const ck=$("#clock"); if(ck) ck.textContent=asOfTxt(); }
-  }catch(e){}
+  if(document.hidden) return;
+  const C=window.MV_CONCOURS, got=[];
+  const gh=fetch(LIVE_GH+"?m="+Math.floor(Date.now()/60000),{cache:"no-store"}).then(r=>r.ok?r.json():null).then(j=>{ if(j&&j.data) got.push(j); }).catch(()=>{});
+  const sb=(C&&C.url&&C.key&&!C.mock)?fetch(C.url+"/rest/v1/live_quotes?select=data,at&id=eq.1",{headers:{apikey:C.key},cache:"no-store"})
+    .then(r=>r.ok?r.json():[]).then(rows=>{ const row=rows[0]; if(row&&row.data) got.push(row); }).catch(()=>{}):null;
+  await Promise.all([gh,sb]);
+  got.sort((x,y)=>Date.parse(y.at)-Date.parse(x.at));
+  if(got[0]) applyLive(got[0].data,got[0].at);
 }
 
 /* ---------- Démarrage ---------- */
