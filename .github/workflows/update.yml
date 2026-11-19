@@ -44,6 +44,6 @@ jobs:
       # en semaine : les cours sont relevés toutes les 5 minutes pendant 55 minutes, jusqu'au lancement suivant
       # (GitHub ne lance ce workflow qu'environ toutes les 45 à 60 minutes, malgré le « toutes les 15 min »)
       - name: Cours toutes les 5 minutes
-     if: github.event.schedule != '0 */4 * * 0,6'
+        if: github.event.schedule != '0 */4 * * 0,6'
         shell: powershell
         run: ./update.ps1 -OutDir . -LiveMinutes 55 -LiveEvery 300
