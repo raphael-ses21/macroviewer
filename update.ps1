@@ -1,6 +1,6 @@
 ﻿# MacroViewer : relève les derniers cours réels (Yahoo Finance, CNBC) et les titres de presse (flux RSS)
 # puis écrit quotes.json et news.json à la racine du site. Lancé par GitHub Actions (.github/workflows/update.yml).
-param([string]$OutDir = (Split-Path $PSScriptRoot -Parent), [int]$LiveMinutes = 0)
+param([string]$OutDir = (Split-Path $PSScriptRoot -Parent), [int]$LiveMinutes = 0, [int]$LiveEvery = 300)
 $ErrorActionPreference = 'Stop'
 $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
 $utf8 = New-Object Text.UTF8Encoding($false)
@@ -14,8 +14,22 @@ foreach($kv in @(@('bova11','BOVA11.SA'),@('ewz','EWZ'),@('kodex200','069500.KS'
   @('gold','GC=F'),@('silver','SI=F'),@('platinum','PL=F'),@('copper','HG=F'),@('wti','CL=F'),@('brent','BZ=F'),@('natgas','NG=F'),@('wheat','ZW=F'),@('corn','ZC=F'),@('coffee','KC=F'),@('cocoa','CC=F'),@('sugar','SB=F'))){ $yahoo[$kv[0]]=$kv[1] }
 # ETF des grands indices
 foreach($kv in @(@('tiger200','102110.KS'),@('kodexkq150','229200.KS'),@('smal11','SMAL11.SA'),@('exs1','EXS1.DE'),@('exw1','EXW1.DE'),@('isf','ISF.L'),@('cssmi','CSSMI.SW'),@('lyxib','LYXIB.MC'),@('etfmib','ETFMIB.MI'),@('iaex','IAEX.AS'),@('dia','DIA'),@('iwm','IWM'),@('nk225','1321.T'),@('tracker','2800.HK'),@('sse50etf','510050.SS'),@('niftybees','NIFTYBEES.NS'),@('stw','STW.AX'),@('xiu','XIU.TO'))){ $yahoo[$kv[0]]=$kv[1] }
+# Taïwan : indice TAIEX et ETF
+foreach($kv in @(@('taiex','^TWII'),@('tw0050','0050.TW'),@('tw006208','006208.TW'),@('tw0056','0056.TW'),@('tw00878','00878.TW'),@('tw00919','00919.TW'),@('fltw','FLTW'))){ $yahoo[$kv[0]]=$kv[1] }
 # devises du G20 face à l'euro
-foreach($x in 'usd','jpy','gbp','chf','cad','aud','cny','inr','brl','hkd','krw','idr','mxn','rub','sar','zar','try','ars'){ $yahoo["eur$x"] = "EUR$($x.ToUpper())=X" }
+foreach($x in 'twd','usd','jpy','gbp','chf','cad','aud','cny','inr','brl','hkd','krw','idr','mxn','rub','sar','zar','try','ars'){ $yahoo["eur$x"] = "EUR$($x.ToUpper())=X" }
+# ---------- entrées en Bourse attendues ----------
+# Dès que l'entreprise est cotée à New York (Nasdaq ou NYSE), ses cours sont relevés automatiquement
+# et le site l'affiche tout seul (onglet « Autres actions »). Rien d'autre à faire ce jour-là.
+$ipoWatch = [ordered]@{ anthropic = '^Anthropic(?!.*(ETF|ETP|Synth|Token|Lab Ecosystem))' }
+$ipoSym = @{}
+foreach ($k in $ipoWatch.Keys) {
+  try {
+    $r = Invoke-RestMethod -Uri ("https://query2.finance.yahoo.com/v1/finance/search?q=" + [uri]::EscapeDataString($k) + "&quotesCount=10&newsCount=0") -UserAgent $ua -TimeoutSec 20
+    $hit = $r.quotes | Where-Object { $_.quoteType -eq 'EQUITY' -and $_.exchange -in 'NMS','NGM','NCM','NYQ','ASE' -and ((@($_.longname, $_.shortname) -match $ipoWatch[$k]).Count -gt 0) } | Select-Object -First 1
+    if ($hit) { $yahoo[$k] = $hit.symbol; $ipoSym[$k] = $hit.symbol; "Entrée en Bourse détectée : $k = $($hit.symbol)" }
+  } catch {}
+}
 $bonds = [ordered]@{ oat10='FR10Y'; bund10='DE10Y'; btp10='IT10Y'; ust10='US10Y'; gilt10='GB10Y'; jgb10='JP10Y'
   es10='ES10Y'; pt10='PT10Y'; be10='BE10Y'; nl10='NL10Y'; gr10='GR10Y'; at10='AT10Y'; ch10='CH10Y'; ca10='CA10Y'; au10='AU10Y'; cn10='CN10Y'; in10='IN10Y'; br10='BR10Y'
   fr2='FR2Y'; fr30='FR30Y'; de2='DE2Y'; de30='DE30Y'; us2='US2Y'; us30='US30Y'; it2='IT2Y'; jp2='JP2Y' }
@@ -76,7 +90,7 @@ function Send-Prices($q) {
 }
 
 # ---------- cours en direct ----------
-# Lancé avec -LiveMinutes : relève tous les cours toutes les 2 minutes et les envoie à Supabase
+# Lancé avec -LiveMinutes : relève tous les cours toutes les $LiveEvery secondes (5 minutes par défaut) et les envoie à Supabase
 # (table live_quotes, lue chaque minute par le site), puis exécute les stop loss des concours.
 if ($LiveMinutes -gt 0) {
   if (-not ($sbUrl -and $sbKey)) { "Cours en direct non envoyés (secret SUPABASE_SERVICE_KEY absent)"; return }
@@ -115,7 +129,7 @@ if ($LiveMinutes -gt 0) {
       "Direct n°$($round) à $((Get-Date).ToUniversalTime().ToString('HH:mm')) UTC : $($lq.Count) cours"
       Send-Prices $lq
     } catch { "Direct n°$($round) : $($_.Exception.Message)" }
-    $wait = 120 - ((Get-Date) - $start).TotalSeconds
+    $wait = $LiveEvery - ((Get-Date) - $start).TotalSeconds
     if ((Get-Date).AddSeconds([math]::Max(0, $wait)) -ge $deadline) { break }
     if ($wait -gt 0) { Start-Sleep -Seconds ([int]$wait) }
   }
@@ -165,6 +179,7 @@ if (Test-Path $uniFile) {
     }
   } catch { $errors += "univers : $($_.Exception.Message)" }
 }
+foreach ($k in $ipoSym.Keys) { if ($q.Contains($k)) { $q[$k].s = $ipoSym[$k] } }   # symbole de la nouvelle action, lu par le site
 if ($q.Count -lt 30) { throw "Trop peu de cours récupérés ($($q.Count)). Erreurs : $($errors -join ' | ')" }
 $asOf = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 [IO.File]::WriteAllText((Join-Path $OutDir 'quotes.json'), ([ordered]@{ asOf = $asOf; q = $q } | ConvertTo-Json -Depth 6 -Compress), $utf8)
